@@ -45,9 +45,9 @@ export default function ClientDashboard() {
         </div>
 
         {/* Floating Button for Navigation */}
-        <div className="relative h-screen">
+        <div >
           <Button
-            className="absolute bottom-20 right-4 z-50"
+            className="absolute bottom-5 right-8 z-50"
             onClick={() => router.push("/client/upload")}
           >
             +
