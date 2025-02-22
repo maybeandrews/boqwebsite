@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 const projects = [
   { name: "Project 1", status: "pending" },
   { name: "Project 2", status: "Approved" },
   { name: "Project 3", status: "Not proceeding with the quote" },
   { name: "Project 4", status: "Not proceeding with the quote" },
+  { name: "Project 5", status: "Not proceeding with the quote" }
 ];
 
 export default function ClientDashboard() {
@@ -17,7 +17,7 @@ export default function ClientDashboard() {
 
   return (
     <>
-      <div>
+      <div className="container mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-10">Main Dashboard</h1>
       </div>
       <div className="flex justify-between space-x-6">
@@ -45,9 +45,9 @@ export default function ClientDashboard() {
         </div>
 
         {/* Floating Button for Navigation */}
-        <div >
+        <div className="relative h-screen">
           <Button
-            className="absolute bottom-5 right-8 z-50"
+            className="absolute bottom-20 right-4 z-50"
             onClick={() => router.push("/client/upload")}
           >
             +
