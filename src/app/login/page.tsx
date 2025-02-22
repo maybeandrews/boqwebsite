@@ -1,6 +1,6 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,15 +18,25 @@ import Link from "next/link";
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [email, setEmail] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
 
     async function onSubmit(event: React.SyntheticEvent) {
         event.preventDefault();
         setIsLoading(true);
 
-        // TODO: Add your authentication logic here
-        setTimeout(() => {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        setIsLoading(false);
+
+        if (error) {
+            alert('Error signing in: ' + error.message);
+        } else {
             router.push("/admin/dashboard");
-        }, 1000);
+        }
     }
 
     return (
@@ -53,6 +63,8 @@ export default function LoginPage() {
                                     autoComplete="email"
                                     autoCorrect="off"
                                     disabled={isLoading}
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -61,6 +73,8 @@ export default function LoginPage() {
                                     id="password"
                                     type="password"
                                     disabled={isLoading}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                 />
                             </div>
                             <Button disabled={isLoading}>
@@ -73,7 +87,7 @@ export default function LoginPage() {
                     </form>
                     <div className="mt-4 text-center text-sm">
                         <Link
-                            href="/forgot-password"
+                            href="/#"
                             className="text-blue-600 hover:text-blue-800"
                         >
                             Forgot password?
