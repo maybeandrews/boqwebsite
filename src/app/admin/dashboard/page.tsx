@@ -19,7 +19,6 @@ type Project = {
     quotes: number;
     deadline: string;
     tags: string[];
-    status: string;
 };
 
 const projects: Project[] = [
@@ -31,7 +30,6 @@ const projects: Project[] = [
         quotes: 3,
         deadline: "2023-08-31",
         tags: ["Construction", "Electrical"],
-        status: "draft",
     },
     {
         id: "2",
@@ -41,7 +39,6 @@ const projects: Project[] = [
         deadline: "2023-09-15",
         description: "",
         tags: [],
-        status: "draft",
     },
     {
         id: "3",
@@ -51,7 +48,6 @@ const projects: Project[] = [
         deadline: "2023-09-30",
         description: "",
         tags: [],
-        status: "active",
     },
 ];
 
@@ -70,22 +66,11 @@ export default function DashboardPage() {
                         className="hover:shadow-lg transition-shadow"
                     >
                         <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle>{project.name}</CardTitle>
-                                    <CardDescription className="mt-2">
-                                        {project.description}
-                                    </CardDescription>
-                                </div>
-                                <Badge
-                                    variant={
-                                        project.status === "draft"
-                                            ? "secondary"
-                                            : "default"
-                                    }
-                                >
-                                    {project.status}
-                                </Badge>
+                            <div>
+                                <CardTitle>{project.name}</CardTitle>
+                                <CardDescription className="mt-2">
+                                    {project.description}
+                                </CardDescription>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -125,17 +110,11 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="flex justify-end gap-2">
+                        <CardFooter className="flex justify-end">
                             <Button variant="outline" size="sm">
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                             </Button>
-                            {project.status === "draft" && (
-                                <Button size="sm">
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Publish
-                                </Button>
-                            )}
                         </CardFooter>
                     </Card>
                 ))}
