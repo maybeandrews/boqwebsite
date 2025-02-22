@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,12 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
+    const [errorMessage, setErrorMessage] = useState<string>("");
 
     async function onSubmit(event: React.SyntheticEvent) {
         event.preventDefault();
         setIsLoading(true);
+        setErrorMessage("");
 
         const { error } = await supabase.auth.signInWithPassword({
             email,
@@ -33,7 +35,11 @@ export default function LoginPage() {
         setIsLoading(false);
 
         if (error) {
-            alert('Error signing in: ' + error.message);
+            if (error.message.includes("Invalid login credentials")) {
+                setErrorMessage("No such user found. Please sign up.");
+            } else {
+                setErrorMessage(error.message);
+            }
         } else {
             router.push("/admin/dashboard");
         }
@@ -77,7 +83,12 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
                             </div>
-                            <Button disabled={isLoading}>
+
+                            {errorMessage && (
+                                <p className="text-red-500 text-center">{errorMessage}</p>
+                            )}
+
+                            <Button disabled={isLoading} className="w-full">
                                 {isLoading && (
                                     <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                                 )}
@@ -85,12 +96,17 @@ export default function LoginPage() {
                             </Button>
                         </div>
                     </form>
+
                     <div className="mt-4 text-center text-sm">
-                        <Link
-                            href="/#"
-                            className="text-blue-600 hover:text-blue-800"
-                        >
+                        <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800">
                             Forgot password?
+                        </Link>
+                    </div>
+
+                    <div className="mt-2 text-center text-sm">
+                        Don't have an account?{" "}
+                        <Link href="/signup" className="text-blue-600 hover:text-blue-800">
+                            Sign Up
                         </Link>
                     </div>
                 </CardContent>
