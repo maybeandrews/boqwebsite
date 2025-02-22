@@ -1,6 +1,7 @@
-import type React from "react";
+import React from "react";
 import "../globals.css";
 import type { Metadata } from "next";
+import Head from "next/head";
 import { Inter } from "next/font/google";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -23,8 +24,6 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en">
-            <body className={inter.className}>
                 <SidebarProvider>
                     <div className="flex h-screen">
                         <AppSidebar />
@@ -33,7 +32,5 @@ export default function RootLayout({
                         </main>
                     </div>
                 </SidebarProvider>
-            </body>
-        </html>
     );
 }
