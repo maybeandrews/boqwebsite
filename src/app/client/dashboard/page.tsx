@@ -47,6 +47,6 @@ export default function ClientDashboard() {
           <Button onClick={() => router.push("/client/upload")} className="tooltip-upload">Upload</Button>
         </div>
       </div>
-    </>
-  );
+    </>
+  );
 }
