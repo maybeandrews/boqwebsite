@@ -4,6 +4,7 @@ for admin side stuff to work on:
     vendor database (name, contact, tags)
     be able to add and remove vendors (use supabase for this)
     allow filtering of vendors based on tags (if time is there)
+    register vendor if its not sign up style
 
 -   project dashbaord with a small card for each project
     *I should be able to see projects
