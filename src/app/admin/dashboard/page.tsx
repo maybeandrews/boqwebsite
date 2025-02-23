@@ -1,3 +1,8 @@
+"use client";
+import { useState } from "react";
+import { Dialog } from "@/components/ui/dialog";
+import { ProjectDetailsDialog } from "@/components/project-details-dialog";
+
 import {
     Card,
     CardContent,
@@ -6,9 +11,7 @@ import {
     CardTitle,
     CardFooter,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Send } from "lucide-react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 
 type Project = {
@@ -52,18 +55,29 @@ const projects: Project[] = [
 ];
 
 export default function DashboardPage() {
+    const [selectedProject, setSelectedProject] = useState<Project | null>(
+        null
+    );
+
+    const handleDeleteProject = (projectId: string) => {
+        // Add delete logic here
+        console.log("Deleting project:", projectId);
+        setSelectedProject(null);
+    };
+
     return (
         <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Projects Dashboard</h1>
-                <CreateProjectDialog />
+                <CreateProjectDialog /> {/* Add this line */}
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {projects.map((project) => (
                     <Card
                         key={project.id}
-                        className="hover:shadow-lg transition-shadow"
+                        className="hover:shadow-lg transition-shadow cursor-pointer"
+                        onClick={() => setSelectedProject(project)}
                     >
                         <CardHeader>
                             <div>
@@ -110,15 +124,24 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="flex justify-end">
-                            <Button variant="outline" size="sm">
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                            </Button>
-                        </CardFooter>
                     </Card>
                 ))}
             </div>
+
+            {/* Project Details Dialog */}
+            <Dialog
+                open={!!selectedProject}
+                onOpenChange={() => setSelectedProject(null)}
+            >
+                {selectedProject && (
+                    <ProjectDetailsDialog
+                        project={selectedProject}
+                        //quotes={[]} // Add your quotes data here
+                        onClose={() => setSelectedProject(null)}
+                        onDelete={handleDeleteProject}
+                    />
+                )}
+            </Dialog>
         </div>
     );
 }
