@@ -9,22 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
     CardFooter,
 } from "@/components/ui/card";
-import {
-    Dialog,
-    DialogPortal,
-    DialogOverlay,
-    DialogTrigger,
-    DialogContent,
-    DialogHeader,
-    DialogFooter,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const initialProjects = ["Project A", "Project B", "Project C"];
 const initialBoqCategories = ["Electrical", "Plumbing", "Mechanical", "Civil Works"];
@@ -44,8 +33,8 @@ export default function BOQPage() {
     const [uploadedBOQs, setUploadedBOQs] = useState<BOQ[]>([]);
     const [files, setFiles] = useState<{ [key: string]: File | null }>({});
     const [notes, setNotes] = useState<{ [key: string]: string }>({});
-    const [newProjectName, setNewProjectName] = useState<string>("");
-    const [newBoqCategory, setNewBoqCategory] = useState<string>("");
+    const [newCategoryName, setNewCategoryName] = useState<string>("");
+    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
     const handleFileChange = (category: string, event: ChangeEvent<HTMLInputElement>) => {
         setFiles({ ...files, [category]: event.target.files ? event.target.files[0] : null });
@@ -59,7 +48,7 @@ export default function BOQPage() {
         if (!selectedProject) return alert("Please select a project");
 
         const newUploads = boqCategories
-            .filter((category) => files[category]) // Ensure only categories with files are added
+            .filter((category) => files[category])
             .map((category) => ({
                 project: selectedProject,
                 category,
@@ -81,6 +70,31 @@ export default function BOQPage() {
         setUploadedBOQs((prevUploads) => prevUploads.filter((_, i) => i !== index));
     };
 
+    const handleAddBoqCategory = () => {
+        if (!newCategoryName.trim()) {
+            return alert("Please enter a category name.");
+        }
+        setBoqCategories([...boqCategories, newCategoryName]);
+        setNewCategoryName("");
+        setIsModalOpen(false);
+    };
+
+    const handleRenameCategory = (oldCategory: string, newCategory: string) => {
+        setBoqCategories((prevCategories) =>
+            prevCategories.map((category) => (category === oldCategory ? newCategory : category))
+        );
+        setFiles((prevFiles) => {
+            const newFiles = { ...prevFiles, [newCategory]: prevFiles[oldCategory] };
+            delete newFiles[oldCategory];
+            return newFiles;
+        });
+        setNotes((prevNotes) => {
+            const newNotes = { ...prevNotes, [newCategory]: prevNotes[oldCategory] };
+            delete newNotes[oldCategory];
+            return newNotes;
+        });
+    };
+
     const handleDeleteCategory = (category: string) => {
         setBoqCategories((prevCategories) => prevCategories.filter((cat) => cat !== category));
         setFiles((prevFiles) => {
@@ -93,17 +107,6 @@ export default function BOQPage() {
             delete newNotes[category];
             return newNotes;
         });
-    };
-
-    const handleAddProject = () => {
-        if (newProjectName) {
-            setProjects([...projects, newProjectName]);
-            setNewProjectName("");
-        }
-        if (newBoqCategory) {
-            setBoqCategories([...boqCategories, newBoqCategory]);
-            setNewBoqCategory("");
-        }
     };
 
     return (
@@ -125,46 +128,24 @@ export default function BOQPage() {
                     <div className="space-y-4 mt-4">
                         {boqCategories.map((category) => (
                             <div key={category}>
-                                <Button onClick={() => handleDeleteCategory(category)} className="bg-red-500 text-white hover:bg-red-700 mb-2">Delete BOQ</Button>
                                 <Card className="hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 rounded-lg">
                                     <CardContent>
                                         <div className="rounded-md mb-4">
-                                            <h3 className="text-lg font-semibold mb-2 mt-2">{category} BOQ</h3>
+                                            <Input
+                                                type="text"
+                                                defaultValue={category}
+                                                onBlur={(e) => handleRenameCategory(category, e.target.value)}
+                                                className="mb-2"
+                                            />
                                             <Input type="file" onChange={(e) => handleFileChange(category, e)} className="mb-2" />
                                             <Textarea placeholder="Add notes or remarks" onChange={(e) => handleNoteChange(category, e)} className="mb-2" />
+                                            <Button variant="destructive" onClick={() => handleDeleteCategory(category)} className="bg-red-500 text-white hover:bg-red-700">Delete</Button>
                                         </div>
                                     </CardContent>
                                 </Card>
                             </div>
                         ))}
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button className="bg-black text-white hover:bg-gray-800">+</Button>
-                            </DialogTrigger>
-                            <DialogPortal>
-                                <DialogOverlay className="bg-black opacity-50" />
-                                <DialogContent className="flex items-center justify-center p-4">
-                                    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Add New BOQ Category</DialogTitle>
-                                            <DialogDescription>
-                                                Enter the BOQ category to add them to the list.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
-                                            <Input
-                                                placeholder="BOQ Category"
-                                                value={newBoqCategory}
-                                                onChange={(e) => setNewBoqCategory(e.target.value)}
-                                            />
-                                        </div>
-                                        <DialogFooter className="mt-4">
-                                            <Button onClick={handleAddProject} className="bg-black text-white hover:bg-gray-800">Add</Button>
-                                        </DialogFooter>
-                                    </div>
-                                </DialogContent>
-                            </DialogPortal>
-                        </Dialog>
+                        <Button onClick={() => setIsModalOpen(true)} className="w-full bg-green-500 text-white hover:bg-green-700">+ Add New BOQ</Button>
                         <Button onClick={handleUpload} className="w-full bg-black text-white hover:bg-gray-800">Upload BOQs</Button>
                     </div>
                 </div>
@@ -182,7 +163,7 @@ export default function BOQPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {uploadedBOQs.map((doc, index) => (
+                            {uploadedBOQs.filter((doc) => doc.project === selectedProject).map((doc, index) => (
                                 <TableRow key={index}>
                                     <TableCell>{doc.project}</TableCell>
                                     <TableCell>{doc.category}</TableCell>
@@ -198,6 +179,26 @@ export default function BOQPage() {
                     </Table>
                 </div>
             </div>
+
+            {/* Modal for adding new BOQ category */}
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New BOQ Category</DialogTitle>
+                    </DialogHeader>
+                    <Input
+                        type="text"
+                        placeholder="New BOQ Category Name"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="mb-2"
+                    />
+                    <DialogFooter>
+                        <Button onClick={handleAddBoqCategory} className="bg-green-500 text-white hover:bg-green-700">Add</Button>
+                        <Button onClick={() => setIsModalOpen(false)} className="bg-gray-500 text-white hover:bg-gray-700">Cancel</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
