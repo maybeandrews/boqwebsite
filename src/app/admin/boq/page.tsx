@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ export default function BOQPage() {
     const [notes, setNotes] = useState<{ [key: string]: string }>({});
     const [newCategoryName, setNewCategoryName] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState<boolean>(false);
+    const [selectedQuote, setSelectedQuote] = useState<BOQ | null>(null);
 
     const handleFileChange = (category: string, event: ChangeEvent<HTMLInputElement>) => {
         setFiles({ ...files, [category]: event.target.files ? event.target.files[0] : null });
@@ -109,6 +111,21 @@ export default function BOQPage() {
         });
     };
 
+    const handleViewQuote = (quote: BOQ) => {
+        setSelectedQuote(quote);
+        setIsQuoteModalOpen(true);
+    };
+
+    const handleApproveQuote = () => {
+        // Implement approval logic here
+        setIsQuoteModalOpen(false);
+    };
+
+    const handleRejectQuote = () => {
+        // Implement rejection logic here
+        setIsQuoteModalOpen(false);
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold">BOQ Upload & Management</h1>
@@ -171,6 +188,7 @@ export default function BOQPage() {
                                     <TableCell>{doc.uploadDate}</TableCell>
                                     <TableCell>{doc.notes}</TableCell>
                                     <TableCell>
+                                        <Button onClick={() => handleViewQuote(doc)} className="bg-blue-500 text-white hover:bg-blue-700">View Quote</Button>
                                         <Button variant="destructive" onClick={() => handleDelete(index)} className="bg-black text-white hover:bg-gray-800">Delete</Button>
                                     </TableCell>
                                 </TableRow>
@@ -196,6 +214,29 @@ export default function BOQPage() {
                     <DialogFooter>
                         <Button onClick={handleAddBoqCategory} className="bg-green-500 text-white hover:bg-green-700">Add</Button>
                         <Button onClick={() => setIsModalOpen(false)} className="bg-gray-500 text-white hover:bg-gray-700">Cancel</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal for viewing quote */}
+            <Dialog open={isQuoteModalOpen} onOpenChange={setIsQuoteModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>View Quote</DialogTitle>
+                    </DialogHeader>
+                    {selectedQuote && (
+                        <div>
+                            <p><strong>Project:</strong> {selectedQuote.project}</p>
+                            <p><strong>Category:</strong> {selectedQuote.category}</p>
+                            <p><strong>File:</strong> {selectedQuote.file}</p>
+                            <p><strong>Upload Date:</strong> {selectedQuote.uploadDate}</p>
+                            <p><strong>Notes:</strong> {selectedQuote.notes}</p>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button onClick={handleApproveQuote} className="bg-green-500 text-white hover:bg-green-700">Approve</Button>
+                        <Button onClick={handleRejectQuote} className="bg-red-500 text-white hover:bg-red-700">Reject</Button>
+                        <Button onClick={() => setIsQuoteModalOpen(false)} className="bg-gray-500 text-white hover:bg-gray-700">Close</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
