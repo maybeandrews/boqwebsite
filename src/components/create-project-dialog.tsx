@@ -17,11 +17,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X } from "lucide-react";
 import { vendors } from "@/data/vendors";
 import { useState } from "react";
+import { toast } from "sonner";
 
-export function CreateProjectDialog() {
+type CreateProjectDialogProps = {
+    onProjectCreated: () => void;
+};
+
+export function CreateProjectDialog({
+    onProjectCreated,
+}: CreateProjectDialogProps) {
+    const [open, setOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        name: "",
+        description: "",
+        deadline: "",
+    });
     const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
+
+    const handleInputChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        const { id, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [id]: value,
+        }));
+    };
 
     const handleVendorToggle = (vendorId: string) => {
         setSelectedVendors((current) =>
@@ -45,8 +69,65 @@ export function CreateProjectDialog() {
         setTags(tags.filter((tag) => tag !== tagToRemove));
     };
 
+    const resetForm = () => {
+        setFormData({
+            name: "",
+            description: "",
+            deadline: "",
+        });
+        setSelectedVendors([]);
+        setTags([]);
+        setTagInput("");
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Validate form
+        if (!formData.name.trim()) {
+            toast.error("Project name is required");
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const projectData = {
+                ...formData,
+                tags,
+                vendorIds: selectedVendors,
+            };
+
+            const response = await fetch("/api/projects", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(projectData),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to create project");
+            }
+
+            toast.success("Project created successfully");
+
+            // Close dialog and reset form
+            setOpen(false);
+            resetForm();
+
+            // Notify parent component
+            onProjectCreated();
+        } catch (error) {
+            console.error("Error creating project:", error);
+            toast.error("Failed to create project. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -60,21 +141,35 @@ export function CreateProjectDialog() {
                         Fill in the project details and select vendors.
                     </DialogDescription>
                 </DialogHeader>
-                <form className="grid gap-4 py-4">
+                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="name">Project Name</Label>
-                        <Input id="name" placeholder="Enter project name" />
+                        <Input
+                            id="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            placeholder="Enter project name"
+                            required
+                        />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                             id="description"
+                            value={formData.description}
+                            onChange={handleInputChange}
                             placeholder="Enter project description"
                         />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="deadline">Deadline</Label>
-                        <Input id="deadline" type="date" />
+                        <Input
+                            id="deadline"
+                            type="date"
+                            value={formData.deadline}
+                            onChange={handleInputChange}
+                            required
+                        />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="tags">Tags</Label>
@@ -134,10 +229,12 @@ export function CreateProjectDialog() {
                             ))}
                         </div>
                     </div>
+                    <DialogFooter className="mt-4">
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? "Creating..." : "Create Project"}
+                        </Button>
+                    </DialogFooter>
                 </form>
-                <DialogFooter>
-                    <Button type="submit">Create Project</Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
