@@ -7,10 +7,11 @@ const prisma = new PrismaClient();
 // GET a specific vendor
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: vendorIdString } = context.params;
+        const id = parseInt(vendorIdString);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -43,10 +44,11 @@ export async function GET(
 // PATCH - Update a vendor
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: vendorIdString } = context.params;
+        const id = parseInt(vendorIdString);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -94,16 +96,17 @@ export async function PATCH(
 // DELETE - Remove a vendor
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: vendorIdString } = context.params;
+        const id = parseInt(vendorIdString);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        // Get vendor details before deletion to update project count
+        // Get vendor details before deletion to update project count if needed
         const vendor = await prisma.vendor.findUnique({
             where: { id },
             select: { projectId: true },
@@ -121,15 +124,17 @@ export async function DELETE(
             where: { id },
         });
 
-        // Update the project's vendor count
-        await prisma.project.update({
-            where: { id: vendor.projectId },
-            data: {
-                vendors: {
-                    decrement: 1,
+        // Only update the project's vendor count if the vendor was associated with a project
+        if (vendor.projectId) {
+            await prisma.project.update({
+                where: { id: vendor.projectId },
+                data: {
+                    vendors: {
+                        decrement: 1,
+                    },
                 },
-            },
-        });
+            });
+        }
 
         return NextResponse.json(
             { message: "Vendor deleted successfully" },

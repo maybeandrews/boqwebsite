@@ -26,7 +26,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useParams } from "next/navigation";
 import { Toaster, toast } from "sonner";
 
 interface Vendor {
@@ -35,7 +34,6 @@ interface Vendor {
     contact: string;
     tags: string[];
     approved: boolean;
-    projectId: number;
     username?: string;
     password?: string;
 }
@@ -53,19 +51,17 @@ export default function Page() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const params = useParams();
-    const projectId = parseInt(params.id as string);
 
     // Fetch vendors on component mount
     useEffect(() => {
         fetchVendors();
     }, []);
 
-    // Fetch all vendors for the current project
+    // Fetch all vendors
     const fetchVendors = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/project/${projectId}/vendors`);
+            const response = await fetch(`/api/vendor`);
 
             if (!response.ok) {
                 throw new Error("Failed to fetch vendors");
@@ -101,7 +97,6 @@ export default function Page() {
                     username: newVendor.username,
                     password: newVendor.password,
                     tags: newVendor.tags.split(",").map((tag) => tag.trim()),
-                    projectId: projectId,
                 }),
             });
 
