@@ -13,14 +13,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Project {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  vendors     Int      @default(0)
-  quotes      Int      @default(0)
-  deadline    DateTime
-  tags        String[]
+model BOQ {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  project    Project  @relation(fields: [projectId], references: [id])
+  category   String
+  fileName   String
+  filePath   String
+  notes      String?
+  uploadDate DateTime @default(now())
 }
 
+model Project {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  vendors     Int       @default(0)
+  quotes      Int       @default(0)
+  deadline    DateTime
+  tags        String[]
+  boqs        BOQ[]     
+  vendorList  Vendor[]  // Add this relation
+}
 
+model Vendor {
+  id         Int       @id @default(autoincrement())
+  name       String
+  contact    String
+  tags       String[]
+  approved   Boolean   @default(false)
+  username   String?
+  password   String?   // In production, ensure this is properly hashed
+  projectId  Int
+  project    Project   @relation(fields: [projectId], references: [id])
+}
