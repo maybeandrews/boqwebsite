@@ -13,37 +13,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BOQ {
-  id         Int      @id @default(autoincrement())
-  projectId  Int
-  project    Project  @relation(fields: [projectId], references: [id])
-  category   String
-  fileName   String
-  filePath   String
-  notes      String?
-  uploadDate DateTime @default(now())
-}
-
 model Project {
-  id          Int       @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
   name        String
   description String?
-  vendors     Int       @default(0)
-  quotes      Int       @default(0)
   deadline    DateTime
-  tags        String[]
-  boqs        BOQ[]     
-  vendorList  Vendor[]  // Add this relation
+  boqs        BOQ[]
+  vendors     VendorProject[]
+  quotes      Quote[]
 }
 
 model Vendor {
-  id         Int       @id @default(autoincrement())
-  name       String
-  contact    String
-  tags       String[]
-  approved   Boolean   @default(false)
-  username   String?
-  password   String?   // In production, ensure this is properly hashed
-  projectId  Int
-  project    Project   @relation(fields: [projectId], references: [id])
+  id       Int             @id @default(autoincrement())
+  name     String
+  contact  String
+  approved Boolean         @default(false)
+  username String          @unique
+  password String // Ensure this is hashed in production
+  projects VendorProject[]
+  quotes   Quote[]
+  BOQ      BOQ[]
+}
+
+// Junction table for many-to-many relationship between Vendor and Project
+model VendorProject {
+  id        Int     @id @default(autoincrement())
+  vendorId  Int
+  projectId Int
+  vendor    Vendor  @relation(fields: [vendorId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+
+  @@unique([vendorId, projectId])
+}
+
+// Model for BOQ uploads (requirement documents)
+model BOQ {
+  id            Int      @id @default(autoincrement())
+  projectId     Int
+  project       Project  @relation(fields: [projectId], references: [id])
+  vendorId      Int? // Optional if BOQ is uploaded by vendor
+  vendor        Vendor?  @relation(fields: [vendorId], references: [id])
+  fileName      String
+  filePath      String
+  roughEstimate Decimal? @db.Decimal(10, 2)
+}
+
+// Model for vendor quotes
+model Quote {
+  id        Int         @id @default(autoincrement())
+  vendorId  Int
+  projectId Int
+  vendor    Vendor      @relation(fields: [vendorId], references: [id])
+  project   Project     @relation(fields: [projectId], references: [id])
+  fileName  String
+  filePath  String
+  status    QuoteStatus @default(PENDING)
+  comments  String?
+  value     Decimal?    @db.Decimal(10, 2)
+}
+
+enum QuoteStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

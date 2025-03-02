@@ -7,13 +7,7 @@ const prisma = new PrismaClient();
 // GET all vendors
 export async function GET(req: NextRequest) {
     try {
-        // We need to add a Vendor model to the Prisma schema first
-        // For now, we'll query from the existing schema as best we can
-        const vendors = await prisma.vendor.findMany({
-            include: {
-                project: true,
-            },
-        });
+        const vendors = await prisma.vendor.findMany();
 
         return NextResponse.json({ vendors }, { status: 200 });
     } catch (error) {
@@ -29,41 +23,39 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { name, contact, tags, projectId, username, password } = body;
+        const { name, contact, tags, username, password } = body;
 
-        // Validate required fields
-        if (!name || !contact || !projectId) {
+        // Validate required fields - only name and contact are required now
+        if (!name || !contact) {
             return NextResponse.json(
-                { error: "Missing required fields" },
+                {
+                    error: "Missing required fields: name and contact are required",
+                },
                 { status: 400 }
             );
         }
 
+        // Ensure tags is an array
+        const processedTags = Array.isArray(tags)
+            ? tags
+            : typeof tags === "string"
+            ? tags.split(",").map((tag) => tag.trim())
+            : [];
+
+        // Create vendor data object
+        // Ensure tags is stored as a comma-separated string
+        const vendorData = {
+            name,
+            contact,
+            tags: processedTags.join(", "), // Convert array to string
+            approved: false,
+            username: username || null,
+            password: password || null, // Remember to hash passwords in production,
+        };
+
         // Create the vendor
         const vendor = await prisma.vendor.create({
-            data: {
-                name,
-                contact,
-                tags,
-                approved: false,
-                username,
-                password, // Note: In production, this should be hashed
-                project: {
-                    connect: {
-                        id: projectId,
-                    },
-                },
-            },
-        });
-
-        // Update the project's vendor count
-        await prisma.project.update({
-            where: { id: projectId },
-            data: {
-                vendors: {
-                    increment: 1,
-                },
-            },
+            data: vendorData,
         });
 
         return NextResponse.json({ vendor }, { status: 201 });

@@ -2,15 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
+export const dynamic = "force-dynamic"; // Mark the route as dynamic
+
 const prisma = new PrismaClient();
 
 // PATCH - Toggle vendor approval status
 export async function PATCH(
-    req: NextRequest,
+    request: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
-        const id = parseInt(params.id);
+        // No need for await here; parseInt is synchronous
+        const id = parseInt(params.id, 10);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
