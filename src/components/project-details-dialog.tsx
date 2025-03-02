@@ -8,11 +8,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Tag, AlertTriangle } from "lucide-react";
+import { Trash2, Tag, AlertTriangle, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 // Add Project type definition
 type Project = {
-    id: string;
+    id: string | number;
     name: string;
     description: string;
     deadline: string;
@@ -21,19 +22,14 @@ type Project = {
     tags: string[];
 };
 
+type QuotesByCategory = {
+    [category: string]: number;
+};
+
 type ProjectDetailsProps = {
     project: Project;
     onClose: () => void;
-    onDelete: (projectId: string) => void;
-};
-
-// Temporary data structure for quotes per tag
-const tempQuotesPerTag = {
-    Construction: 5,
-    Electrical: 3,
-    Plumbing: 2,
-    HVAC: 4,
-    Furniture: 1,
+    onDelete: (projectId: string | number) => void;
 };
 
 export function ProjectDetailsDialog({
@@ -41,6 +37,47 @@ export function ProjectDetailsDialog({
     onClose,
     onDelete,
 }: ProjectDetailsProps) {
+    const [quotesByCategory, setQuotesByCategory] = useState<QuotesByCategory>(
+        {}
+    );
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch project details and quotes when the dialog opens
+    useEffect(() => {
+        const fetchProjectDetails = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                // Fetch quotes by category from API
+                const response = await fetch(
+                    `/api/projects/${project.id}/quotes-by-category`
+                );
+
+                if (!response.ok) {
+                    throw new Error("Failed to load project details");
+                }
+
+                const data = await response.json();
+                setQuotesByCategory(data);
+            } catch (err) {
+                console.error("Error fetching project details:", err);
+                setError("Could not load project details");
+                // Fallback to empty object if API fails
+                setQuotesByCategory({});
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchProjectDetails();
+    }, [project.id]);
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString();
+    };
+
     return (
         <DialogContent className="sm:max-w-[625px]">
             <DialogHeader>
@@ -50,7 +87,7 @@ export function ProjectDetailsDialog({
                         variant="destructive"
                         size="sm"
                         onClick={() => onDelete(project.id)}
-                        className="mr-8" // Added margin to move button left
+                        className="mr-8"
                     >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete Project
@@ -69,9 +106,7 @@ export function ProjectDetailsDialog({
                                 Deadline
                             </p>
                             <p className="font-medium">
-                                {new Date(
-                                    project.deadline
-                                ).toLocaleDateString()}
+                                {formatDate(project.deadline)}
                             </p>
                         </div>
                         <div className="flex-1 p-3 border rounded-lg">
@@ -82,11 +117,12 @@ export function ProjectDetailsDialog({
                         </div>
                     </div>
                 </div>
+
                 {/* Tags Section */}
                 <div className="space-y-2">
                     <h3 className="text-sm font-medium">Tags</h3>
                     <div className="flex flex-wrap gap-2">
-                        {project.tags.length > 0 ? (
+                        {project.tags && project.tags.length > 0 ? (
                             project.tags.map((tag) => (
                                 <Badge key={tag} variant="secondary">
                                     {tag}
@@ -99,30 +135,47 @@ export function ProjectDetailsDialog({
                         )}
                     </div>
                 </div>
+
                 {/* Quotes per Tag Section */}
                 <div className="space-y-2">
                     <h3 className="text-sm font-medium">Quotes by Category</h3>
                     <ScrollArea className="h-[200px] rounded-md border p-4">
-                        <div className="space-y-2">
-                            {Object.entries(tempQuotesPerTag).map(
-                                ([tag, count]) => (
-                                    <div
-                                        key={tag}
-                                        className="flex items-center justify-between p-3 border rounded-lg"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Tag className="h-4 w-4 text-muted-foreground" />
-                                            <span className="font-medium">
-                                                {tag}
-                                            </span>
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <span className="ml-2">Loading quotes...</span>
+                            </div>
+                        ) : error ? (
+                            <div className="flex items-center justify-center h-full text-destructive">
+                                <AlertTriangle className="h-5 w-5 mr-2" />
+                                <span>{error}</span>
+                            </div>
+                        ) : Object.keys(quotesByCategory).length > 0 ? (
+                            <div className="space-y-2">
+                                {Object.entries(quotesByCategory).map(
+                                    ([category, count]) => (
+                                        <div
+                                            key={category}
+                                            className="flex items-center justify-between p-3 border rounded-lg"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                                <span className="font-medium">
+                                                    {category}
+                                                </span>
+                                            </div>
+                                            <Badge variant="secondary">
+                                                {count} quotes
+                                            </Badge>
                                         </div>
-                                        <Badge variant="secondary">
-                                            {count} quotes
-                                        </Badge>
-                                    </div>
-                                )
-                            )}
-                        </div>
+                                    )
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <p>No quotes available for this project yet.</p>
+                            </div>
+                        )}
                     </ScrollArea>
                 </div>
             </div>

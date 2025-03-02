@@ -1,6 +1,5 @@
 "use client";
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +17,8 @@ import Link from "next/link";
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [email, setEmail] = useState<string>('');
-    const [password, setPassword] = useState<string>('');
+    const [email, setEmail] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
     async function onSubmit(event: React.SyntheticEvent) {
@@ -27,22 +26,16 @@ export default function LoginPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        setIsLoading(false);
-
-        if (error) {
-            if (error.message.includes("Invalid login credentials")) {
-                setErrorMessage("No such user found. Please sign up.");
+        // Simulate authentication (replace with your actual authentication logic)
+        setTimeout(() => {
+            if (email === "test@example.com" && password === "password123") {
+                setIsLoading(false);
+                router.push("/admin/dashboard");
             } else {
-                setErrorMessage(error.message);
+                setIsLoading(false);
+                setErrorMessage("Invalid login credentials.");
             }
-        } else {
-            router.push("/admin/dashboard");
-        }
+        }, 1000); // Simulate network delay
     }
 
     return (
@@ -80,12 +73,16 @@ export default function LoginPage() {
                                     type="password"
                                     disabled={isLoading}
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
                                 />
                             </div>
 
                             {errorMessage && (
-                                <p className="text-red-500 text-center">{errorMessage}</p>
+                                <p className="text-red-500 text-center">
+                                    {errorMessage}
+                                </p>
                             )}
 
                             <Button disabled={isLoading} className="w-full">
@@ -98,14 +95,20 @@ export default function LoginPage() {
                     </form>
 
                     <div className="mt-4 text-center text-sm">
-                        <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800">
+                        <Link
+                            href="/forgot-password"
+                            className="text-blue-600 hover:text-blue-800"
+                        >
                             Forgot password?
                         </Link>
                     </div>
 
                     <div className="mt-2 text-center text-sm">
                         Don't have an account?{" "}
-                        <Link href="/signup" className="text-blue-600 hover:text-blue-800">
+                        <Link
+                            href="/signup"
+                            className="text-blue-600 hover:text-blue-800"
+                        >
                             Sign Up
                         </Link>
                     </div>
