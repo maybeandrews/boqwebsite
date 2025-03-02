@@ -1,11 +1,11 @@
 "use client";
 
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, Loader2 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -26,6 +26,8 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useParams } from "next/navigation";
+import { Toaster, toast } from "sonner";
 
 interface Vendor {
     id: number;
@@ -33,25 +35,13 @@ interface Vendor {
     contact: string;
     tags: string[];
     approved: boolean;
+    projectId: number;
+    username?: string;
+    password?: string;
 }
 
 export default function Page() {
-    const [vendors, setVendors] = useState<Vendor[]>([
-        {
-            id: 1,
-            name: "ABC Supply",
-            contact: "john@abc.com",
-            tags: ["electronics", "hardware"],
-            approved: true,
-        },
-        {
-            id: 2,
-            name: "XYZ Materials",
-            contact: "mary@xyz.com",
-            tags: ["construction", "tools"],
-            approved: true,
-        },
-    ]);
+    const [vendors, setVendors] = useState<Vendor[]>([]);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [newVendor, setNewVendor] = useState({
         name: "",
@@ -60,39 +50,140 @@ export default function Page() {
         password: "",
         tags: "",
     });
-    const [vendorToDelete, setVendorToDelete] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const params = useParams();
+    const projectId = parseInt(params.id as string);
 
-    const handleAddVendor = () => {
-        const vendor: Vendor = {
-            id: vendors.length + 1,
-            name: newVendor.name,
-            contact: newVendor.contact,
-            tags: newVendor.tags.split(",").map((tag) => tag.trim()),
-            approved: false,
-        };
-        setVendors([...vendors, vendor]);
-        setNewVendor({
-            name: "",
-            contact: "",
-            username: "",
-            password: "",
-            tags: "",
-        });
+    // Fetch vendors on component mount
+    useEffect(() => {
+        fetchVendors();
+    }, []);
+
+    // Fetch all vendors for the current project
+    const fetchVendors = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/project/${projectId}/vendors`);
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch vendors");
+            }
+
+            const data = await response.json();
+            setVendors(data.vendors);
+        } catch (error) {
+            console.error("Error fetching vendors:", error);
+            toast.error("Failed to load vendors. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleDeleteVendor = (id: number) => {
-        setVendors(vendors.filter((vendor) => vendor.id !== id));
-        setVendorToDelete(null);
+    // Add a new vendor
+    const handleAddVendor = async () => {
+        if (!newVendor.name || !newVendor.contact) {
+            toast.error("Please fill in all required fields.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const response = await fetch("/api/vendor", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: newVendor.name,
+                    contact: newVendor.contact,
+                    username: newVendor.username,
+                    password: newVendor.password,
+                    tags: newVendor.tags.split(",").map((tag) => tag.trim()),
+                    projectId: projectId,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to add vendor");
+            }
+
+            const data = await response.json();
+
+            // Refresh vendor list
+            await fetchVendors();
+
+            // Reset form and close dialog
+            setNewVendor({
+                name: "",
+                contact: "",
+                username: "",
+                password: "",
+                tags: "",
+            });
+            setIsDialogOpen(false);
+
+            toast.success("Vendor added successfully.");
+        } catch (error) {
+            console.error("Error adding vendor:", error);
+            toast.error("Failed to add vendor. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const handleApprovalToggle = (id: number, currentStatus: boolean) => {
-        setVendors(
-            vendors.map((vendor) =>
-                vendor.id === id
-                    ? { ...vendor, approved: !currentStatus }
-                    : vendor
-            )
-        );
+    // Delete a vendor
+    const handleDeleteVendor = async (id: number) => {
+        try {
+            const response = await fetch(`/api/vendor/${id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete vendor");
+            }
+
+            // Refresh vendor list
+            await fetchVendors();
+
+            toast.success("Vendor deleted successfully.");
+        } catch (error) {
+            console.error("Error deleting vendor:", error);
+            toast.error("Failed to delete vendor. Please try again.");
+        }
+    };
+
+    // Toggle vendor approval status
+    const handleApprovalToggle = async (id: number, currentStatus: boolean) => {
+        try {
+            const response = await fetch(`/api/vendor/${id}/approve`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update vendor approval status");
+            }
+
+            // Update local state to avoid a full refetch
+            setVendors(
+                vendors.map((vendor) =>
+                    vendor.id === id
+                        ? { ...vendor, approved: !currentStatus }
+                        : vendor
+                )
+            );
+
+            toast.success(
+                `Vendor ${!currentStatus ? "approved" : "approval revoked"}.`
+            );
+        } catch (error) {
+            console.error("Error updating approval status:", error);
+            toast.error("Failed to update approval status. Please try again.");
+        }
     };
 
     // Get unique tags from all vendors
@@ -115,6 +206,9 @@ export default function Page() {
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
+            {/* Add Sonner Toaster component */}
+            <Toaster position="top-right" />
+
             <div className="grid grid-cols-[1fr_auto] gap-4">
                 {/* Left side content */}
                 <div>
@@ -122,125 +216,141 @@ export default function Page() {
                         Vendor Management
                     </h1>
 
-                    <div className="mb-6">
-                        <h2 className="text-sm font-semibold mb-2">
-                            Filter by tags:
-                        </h2>
-                        <div className="flex flex-wrap gap-2">
-                            {allTags.map((tag) => (
-                                <Badge
-                                    key={tag}
-                                    variant={
-                                        selectedTags.includes(tag)
-                                            ? "default"
-                                            : "outline"
-                                    }
-                                    className="cursor-pointer"
-                                    onClick={() => toggleTag(tag)}
-                                >
-                                    {tag}
-                                </Badge>
+                    {allTags.length > 0 && (
+                        <div className="mb-6">
+                            <h2 className="text-sm font-semibold mb-2">
+                                Filter by tags:
+                            </h2>
+                            <div className="flex flex-wrap gap-2">
+                                {allTags.map((tag) => (
+                                    <Badge
+                                        key={tag}
+                                        variant={
+                                            selectedTags.includes(tag)
+                                                ? "default"
+                                                : "outline"
+                                        }
+                                        className="cursor-pointer"
+                                        onClick={() => toggleTag(tag)}
+                                    >
+                                        {tag}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-10">
+                            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                        </div>
+                    ) : filteredVendors.length === 0 ? (
+                        <div className="text-center py-10 border rounded-lg bg-gray-50">
+                            <p className="text-gray-500">No vendors found.</p>
+                            <p className="text-sm text-gray-400 mt-1">
+                                Click "Add Vendor" to create a new vendor.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {filteredVendors.map((vendor) => (
+                                <Card key={vendor.id} className="p-4">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-semibold">
+                                                {vendor.name}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {vendor.contact}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {vendor.tags.map((tag) => (
+                                                    <Badge
+                                                        key={tag}
+                                                        variant="secondary"
+                                                    >
+                                                        {tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={vendor.approved}
+                                                    onCheckedChange={() =>
+                                                        handleApprovalToggle(
+                                                            vendor.id,
+                                                            vendor.approved
+                                                        )
+                                                    }
+                                                    className="mr-2"
+                                                />
+
+                                                <Badge
+                                                    variant={
+                                                        vendor.approved
+                                                            ? "success"
+                                                            : "destructive"
+                                                    }
+                                                >
+                                                    {vendor.approved
+                                                        ? "Approved"
+                                                        : "Pending"}
+                                                </Badge>
+                                            </div>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-500 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>
+                                                            Are you sure?
+                                                        </AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot
+                                                            be undone. This will
+                                                            permanently delete
+                                                            the vendor and
+                                                            remove their data
+                                                            from the system.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>
+                                                            Cancel
+                                                        </AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={() =>
+                                                                handleDeleteVendor(
+                                                                    vendor.id
+                                                                )
+                                                            }
+                                                            className="bg-red-600 hover:bg-red-700"
+                                                        >
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </div>
+                                </Card>
                             ))}
                         </div>
-                    </div>
-
-                    <div className="grid gap-4">
-                        {filteredVendors.map((vendor) => (
-                            <Card key={vendor.id} className="p-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="font-semibold">
-                                            {vendor.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">
-                                            {vendor.contact}
-                                        </p>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {vendor.tags.map((tag) => (
-                                                <Badge
-                                                    key={tag}
-                                                    variant="secondary"
-                                                >
-                                                    {tag}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <Switch
-                                                checked={vendor.approved}
-                                                onCheckedChange={() =>
-                                                    handleApprovalToggle(
-                                                        vendor.id,
-                                                        vendor.approved
-                                                    )
-                                                }
-                                                className="mr-2"
-                                            />
-
-                                            <Badge
-                                                variant={
-                                                    vendor.approved
-                                                        ? "success"
-                                                        : "destructive"
-                                                }
-                                            >
-                                                {vendor.approved
-                                                    ? "Approved"
-                                                    : "Pending"}
-                                            </Badge>
-                                        </div>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-red-500 hover:text-red-700"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>
-                                                        Are you sure?
-                                                    </AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action cannot be
-                                                        undone. This will
-                                                        permanently delete the
-                                                        vendor and remove their
-                                                        data from the system.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>
-                                                        Cancel
-                                                    </AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        onClick={() =>
-                                                            handleDeleteVendor(
-                                                                vendor.id
-                                                            )
-                                                        }
-                                                        className="bg-red-600 hover:bg-red-700"
-                                                    >
-                                                        Delete
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
+                    )}
                 </div>
 
                 {/* Right side content */}
                 <div>
-                    <Dialog>
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button className="flex items-center gap-2">
                                 <PlusCircle className="w-4 h-4" />
@@ -253,7 +363,7 @@ export default function Page() {
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="name">Company Name</Label>
+                                    <Label htmlFor="name">Company Name*</Label>
                                     <Input
                                         id="name"
                                         value={newVendor.name}
@@ -267,7 +377,7 @@ export default function Page() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="contact">
-                                        Contact Email
+                                        Contact Email*
                                     </Label>
                                     <Input
                                         id="contact"
@@ -323,8 +433,18 @@ export default function Page() {
                                         placeholder="e.g. electronics, hardware"
                                     />
                                 </div>
-                                <Button onClick={handleAddVendor}>
-                                    Add Vendor
+                                <Button
+                                    onClick={handleAddVendor}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Adding...
+                                        </>
+                                    ) : (
+                                        "Add Vendor"
+                                    )}
                                 </Button>
                             </div>
                         </DialogContent>
