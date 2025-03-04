@@ -28,25 +28,31 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Toaster, toast } from "sonner";
 
+interface VendorProject {
+    id: number;
+    project: {
+        id: number;
+        name: string;
+    };
+}
+
 interface Vendor {
     id: number;
     name: string;
     contact: string;
-    tags: string[];
     approved: boolean;
-    username?: string;
-    password?: string;
+    username: string;
+    password: string;
+    projects: VendorProject[];
 }
 
 export default function Page() {
     const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [newVendor, setNewVendor] = useState({
         name: "",
         contact: "",
         username: "",
         password: "",
-        tags: "",
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +85,12 @@ export default function Page() {
 
     // Add a new vendor
     const handleAddVendor = async () => {
-        if (!newVendor.name || !newVendor.contact) {
+        if (
+            !newVendor.name ||
+            !newVendor.contact ||
+            !newVendor.username ||
+            !newVendor.password
+        ) {
             toast.error("Please fill in all required fields.");
             return;
         }
@@ -96,12 +107,12 @@ export default function Page() {
                     contact: newVendor.contact,
                     username: newVendor.username,
                     password: newVendor.password,
-                    tags: newVendor.tags.split(",").map((tag) => tag.trim()),
                 }),
             });
 
             if (!response.ok) {
-                throw new Error("Failed to add vendor");
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to add vendor");
             }
 
             const data = await response.json();
@@ -115,14 +126,17 @@ export default function Page() {
                 contact: "",
                 username: "",
                 password: "",
-                tags: "",
             });
             setIsDialogOpen(false);
 
             toast.success("Vendor added successfully.");
         } catch (error) {
             console.error("Error adding vendor:", error);
-            toast.error("Failed to add vendor. Please try again.");
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to add vendor. Please try again."
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -181,24 +195,6 @@ export default function Page() {
         }
     };
 
-    // Get unique tags from all vendors
-    const allTags = Array.from(
-        new Set(vendors.flatMap((vendor) => vendor.tags))
-    );
-
-    // Filter vendors based on selected tags
-    const filteredVendors = vendors.filter(
-        (vendor) =>
-            selectedTags.length === 0 ||
-            selectedTags.some((tag) => vendor.tags.includes(tag))
-    );
-
-    const toggleTag = (tag: string) => {
-        setSelectedTags((prev) =>
-            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-        );
-    };
-
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* Add Sonner Toaster component */}
@@ -211,35 +207,11 @@ export default function Page() {
                         Vendor Management
                     </h1>
 
-                    {allTags.length > 0 && (
-                        <div className="mb-6">
-                            <h2 className="text-sm font-semibold mb-2">
-                                Filter by tags:
-                            </h2>
-                            <div className="flex flex-wrap gap-2">
-                                {allTags.map((tag) => (
-                                    <Badge
-                                        key={tag}
-                                        variant={
-                                            selectedTags.includes(tag)
-                                                ? "default"
-                                                : "outline"
-                                        }
-                                        className="cursor-pointer"
-                                        onClick={() => toggleTag(tag)}
-                                    >
-                                        {tag}
-                                    </Badge>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {isLoading ? (
                         <div className="flex items-center justify-center py-10">
                             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                         </div>
-                    ) : filteredVendors.length === 0 ? (
+                    ) : vendors.length === 0 ? (
                         <div className="text-center py-10 border rounded-lg bg-gray-50">
                             <p className="text-gray-500">No vendors found.</p>
                             <p className="text-sm text-gray-400 mt-1">
@@ -248,7 +220,7 @@ export default function Page() {
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            {filteredVendors.map((vendor) => (
+                            {vendors.map((vendor) => (
                                 <Card key={vendor.id} className="p-4">
                                     <div className="flex justify-between items-start">
                                         <div>
@@ -258,16 +230,29 @@ export default function Page() {
                                             <p className="text-sm text-gray-600">
                                                 {vendor.contact}
                                             </p>
-                                            <div className="flex flex-wrap gap-2 mt-2">
-                                                {vendor.tags.map((tag) => (
-                                                    <Badge
-                                                        key={tag}
-                                                        variant="secondary"
-                                                    >
-                                                        {tag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
+                                            {vendor.projects.length > 0 && (
+                                                <div className="mt-2">
+                                                    <span className="text-xs text-gray-500">
+                                                        Assigned to projects:
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {vendor.projects.map(
+                                                            (vp) => (
+                                                                <Badge
+                                                                    key={vp.id}
+                                                                    variant="secondary"
+                                                                >
+                                                                    {
+                                                                        vp
+                                                                            .project
+                                                                            .name
+                                                                    }
+                                                                </Badge>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-2">
@@ -386,7 +371,7 @@ export default function Page() {
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="username">Username</Label>
+                                    <Label htmlFor="username">Username*</Label>
                                     <Input
                                         id="username"
                                         value={newVendor.username}
@@ -399,7 +384,7 @@ export default function Page() {
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="password">Password</Label>
+                                    <Label htmlFor="password">Password*</Label>
                                     <Input
                                         id="password"
                                         type="password"
@@ -410,22 +395,6 @@ export default function Page() {
                                                 password: e.target.value,
                                             })
                                         }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="tags">
-                                        Tags (comma-separated)
-                                    </Label>
-                                    <Input
-                                        id="tags"
-                                        value={newVendor.tags}
-                                        onChange={(e) =>
-                                            setNewVendor({
-                                                ...newVendor,
-                                                tags: e.target.value,
-                                            })
-                                        }
-                                        placeholder="e.g. electronics, hardware"
                                     />
                                 </div>
                                 <Button

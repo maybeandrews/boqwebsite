@@ -20,7 +20,12 @@ export async function GET(
         const vendor = await prisma.vendor.findUnique({
             where: { id },
             include: {
-                project: true,
+                projects: {
+                    include: {
+                        project: true,
+                    },
+                },
+                quotes: true,
             },
         });
 
@@ -55,12 +60,11 @@ export async function PATCH(
         }
 
         const body = await req.json();
-        const { name, contact, tags, approved, username, password } = body;
+        const { name, contact, approved, username, password } = body;
 
-        // Get current vendor to check if we need to update project relationship
+        // Check if vendor exists
         const currentVendor = await prisma.vendor.findUnique({
             where: { id },
-            select: { projectId: true },
         });
 
         if (!currentVendor) {
@@ -76,7 +80,6 @@ export async function PATCH(
             data: {
                 name,
                 contact,
-                tags,
                 approved,
                 username,
                 password, // Note: In production, this should be hashed
@@ -106,10 +109,9 @@ export async function DELETE(
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        // Get vendor details before deletion to update project count if needed
+        // Check if vendor exists
         const vendor = await prisma.vendor.findUnique({
             where: { id },
-            select: { projectId: true },
         });
 
         if (!vendor) {
@@ -119,22 +121,11 @@ export async function DELETE(
             );
         }
 
-        // Delete the vendor
+        // Delete the vendor - Prisma will automatically handle the deletion of related records
+        // in the VendorProject junction table due to referential actions
         await prisma.vendor.delete({
             where: { id },
         });
-
-        // Only update the project's vendor count if the vendor was associated with a project
-        if (vendor.projectId) {
-            await prisma.project.update({
-                where: { id: vendor.projectId },
-                data: {
-                    vendors: {
-                        decrement: 1,
-                    },
-                },
-            });
-        }
 
         return NextResponse.json(
             { message: "Vendor deleted successfully" },
