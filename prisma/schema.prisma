@@ -47,6 +47,8 @@ model BOQ {
   filePath      String
   roughEstimate Decimal? @db.Decimal(10, 2)
   vendorId      Int?
+  category      String   // Add this field
+  notes         String?
   project       Project  @relation(fields: [projectId], references: [id])
   vendor        Vendor?  @relation(fields: [vendorId], references: [id])
 }

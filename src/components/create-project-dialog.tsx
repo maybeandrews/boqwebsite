@@ -15,9 +15,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X } from "lucide-react";
-import { vendors } from "@/data/vendors";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+
+// Define vendor type based on your API
+type Vendor = {
+    id: number;
+    name: string;
+    approved: boolean; // Add this field
+};
 
 type CreateProjectDialogProps = {
     onProjectCreated: () => void;
@@ -33,9 +39,49 @@ export function CreateProjectDialog({
         description: "",
         deadline: "",
     });
-    const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+    const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+    const [vendorError, setVendorError] = useState<string | null>(null);
+
+    // Fetch vendors from API when dialog opens
+    useEffect(() => {
+        if (open) {
+            fetchVendors();
+        }
+    }, [open]);
+
+    const fetchVendors = async () => {
+        setIsLoadingVendors(true);
+        setVendorError(null);
+        try {
+            const response = await fetch("/api/vendor");
+            if (!response.ok) {
+                throw new Error("Failed to fetch vendors");
+            }
+            const data = await response.json();
+
+            // Filter to only show approved vendors
+            interface VendorResponse {
+                id: number;
+                name: string;
+                approved: boolean;
+            }
+
+            const approvedVendors: VendorResponse[] = data.filter(
+                (vendor: VendorResponse) => vendor.approved === true
+            );
+            setVendors(approvedVendors);
+        } catch (error) {
+            console.error("Error fetching vendors:", error);
+            setVendorError("Failed to load vendors. Please try again.");
+            toast.error("Failed to load vendors");
+        } finally {
+            setIsLoadingVendors(false);
+        }
+    };
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -47,7 +93,7 @@ export function CreateProjectDialog({
         }));
     };
 
-    const handleVendorToggle = (vendorId: string) => {
+    const handleVendorToggle = (vendorId: number) => {
         setSelectedVendors((current) =>
             current.includes(vendorId)
                 ? current.filter((id) => id !== vendorId)
@@ -92,10 +138,17 @@ export function CreateProjectDialog({
         setIsSubmitting(true);
 
         try {
-            const projectData = {
+            // Log the data being sent to ensure tags are included
+            console.log("Sending project data:", {
                 ...formData,
                 tags,
-                vendorIds: selectedVendors,
+                vendors: selectedVendors,
+            });
+
+            const projectData = {
+                ...formData,
+                tags: tags, // Explicitly include tags array
+                vendors: selectedVendors,
             };
 
             const response = await fetch("/api/projects", {
@@ -105,6 +158,10 @@ export function CreateProjectDialog({
                 },
                 body: JSON.stringify(projectData),
             });
+
+            // Log the response to debug
+            const responseData = await response.json();
+            console.log("API response:", responseData);
 
             if (!response.ok) {
                 throw new Error("Failed to create project");
@@ -202,31 +259,50 @@ export function CreateProjectDialog({
                     <div className="grid gap-2">
                         <Label>Select Vendors</Label>
                         <div className="border rounded-lg p-4 space-y-2">
-                            {vendors.map((vendor) => (
-                                <div
-                                    key={vendor.id}
-                                    className="flex items-center space-x-2"
-                                >
-                                    <Checkbox
-                                        id={`vendor-${vendor.id}`}
-                                        checked={selectedVendors.includes(
-                                            vendor.id
-                                        )}
-                                        onCheckedChange={() =>
-                                            handleVendorToggle(vendor.id)
-                                        }
-                                    />
-                                    <Label
-                                        htmlFor={`vendor-${vendor.id}`}
-                                        className="flex items-center gap-2"
-                                    >
-                                        {vendor.name}
-                                        <span className="text-sm text-muted-foreground">
-                                            ({vendor.tags.join(", ")})
-                                        </span>
-                                    </Label>
+                            {isLoadingVendors ? (
+                                <div className="py-4 text-center text-muted-foreground">
+                                    Loading vendors...
                                 </div>
-                            ))}
+                            ) : vendorError ? (
+                                <div className="py-4 text-center text-destructive">
+                                    {vendorError}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={fetchVendors}
+                                        className="ml-2"
+                                    >
+                                        Retry
+                                    </Button>
+                                </div>
+                            ) : vendors.length === 0 ? (
+                                <div className="py-4 text-center text-muted-foreground">
+                                    No approved vendors available
+                                </div>
+                            ) : (
+                                vendors.map((vendor) => (
+                                    <div
+                                        key={vendor.id}
+                                        className="flex items-center space-x-2"
+                                    >
+                                        <Checkbox
+                                            id={`vendor-${vendor.id}`}
+                                            checked={selectedVendors.includes(
+                                                vendor.id
+                                            )}
+                                            onCheckedChange={() =>
+                                                handleVendorToggle(vendor.id)
+                                            }
+                                        />
+                                        <Label
+                                            htmlFor={`vendor-${vendor.id}`}
+                                            className="flex items-center gap-2"
+                                        >
+                                            {vendor.name}
+                                        </Label>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                     <DialogFooter className="mt-4">

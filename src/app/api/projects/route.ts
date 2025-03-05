@@ -67,15 +67,25 @@ export async function POST(request: NextRequest) {
                 name: body.name,
                 description: body.description || "",
                 deadline: new Date(body.deadline),
-                tags,
+                tags: { set: tags }, // Ensure tags are set using Prisma's syntax
                 boqs: { connect: boqs.map((boqId: number) => ({ id: boqId })) },
-                quotes: { connect: quotes.map((quoteId: number) => ({ id: quoteId })) },
-                vendors: { connect: vendors.map((vendorId: number) => ({ id: vendorId })) },
+                quotes: {
+                    connect: quotes.map((quoteId: number) => ({ id: quoteId })),
+                },
+                vendors: {
+                    create: vendors.map((vendorId: number) => ({
+                        vendor: { connect: { id: vendorId } },
+                    })),
+                },
             },
             include: {
                 boqs: true,
                 quotes: true,
-                vendors: true,
+                vendors: {
+                    include: {
+                        vendor: true,
+                    },
+                },
             },
         });
 
@@ -84,7 +94,11 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error("Error creating project:", error);
         return NextResponse.json(
-            { error: "Failed to create project", details: error instanceof Error ? error.message : "Unknown error" },
+            {
+                error: "Failed to create project",
+                details:
+                    error instanceof Error ? error.message : "Unknown error",
+            },
             { status: 500 }
         );
     }
