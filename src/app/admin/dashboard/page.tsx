@@ -54,7 +54,31 @@ export default function DashboardPage() {
                 throw new Error("Failed to fetch projects");
             }
             const data = await response.json();
-            setProjects(data);
+
+            // Transform the data to match the Project type definition
+            interface ApiProject {
+                id: string | number;
+                name: string;
+                description?: string;
+                vendors?: { id: string | number }[];
+                quotes?: { id: string | number }[];
+                deadline: string;
+                tags?: string[];
+            }
+
+            const transformedProjects: Project[] = (data as ApiProject[]).map(
+                (project: ApiProject) => ({
+                    id: project.id,
+                    name: project.name,
+                    description: project.description || "",
+                    vendors: project.vendors ? project.vendors.length : 0,
+                    quotes: project.quotes ? project.quotes.length : 0,
+                    deadline: project.deadline,
+                    tags: project.tags || [],
+                })
+            );
+
+            setProjects(transformedProjects);
         } catch (err) {
             setError("Error loading projects. Please try again later.");
             console.error("Error fetching projects:", err);

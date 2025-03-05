@@ -1,4 +1,3 @@
-// app/api/project/[id]/vendors/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
@@ -31,13 +30,19 @@ export async function GET(
             );
         }
 
-        // Get all vendors for this project
-        const vendors = await prisma.vendor.findMany({
+        // Get all vendors for this project through the VendorProject join table
+        const vendors = await prisma.vendorProject.findMany({
             where: { projectId },
-            orderBy: { name: "asc" },
+            include: {
+                vendor: true,
+            },
+            orderBy: { vendor: { name: "asc" } },
         });
 
-        return NextResponse.json({ vendors }, { status: 200 });
+        // Extract vendor details
+        const vendorDetails = vendors.map((vp) => vp.vendor);
+
+        return NextResponse.json({ vendors: vendorDetails }, { status: 200 });
     } catch (error) {
         console.error("Error fetching project vendors:", error);
         return NextResponse.json(

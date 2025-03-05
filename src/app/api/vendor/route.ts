@@ -8,16 +8,28 @@ const prisma = new PrismaClient();
 export async function GET(req: NextRequest) {
     try {
         const vendors = await prisma.vendor.findMany({
-            include: {
+            select: {
+                id: true,
+                name: true,
+                contact: true,
+                approved: true,
+                username: true,
+                // Don't include password for security
                 projects: {
                     include: {
-                        project: true,
+                        project: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
                     },
                 },
             },
         });
 
-        return NextResponse.json({ vendors }, { status: 200 });
+        // Return just the vendors array, not wrapped in an object
+        return NextResponse.json(vendors, { status: 200 });
     } catch (error) {
         console.error("Error fetching vendors:", error);
         return NextResponse.json(

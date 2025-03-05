@@ -8,10 +8,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Tag, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, Tag, AlertTriangle, Loader2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
-// Add Project type definition
+// Update Project type definition to match the dashboard expectations
 type Project = {
     id: string | number;
     name: string;
@@ -20,6 +20,16 @@ type Project = {
     vendors: number;
     quotes: number;
     tags: string[];
+};
+
+// Define vendor type that matches your API response
+type Vendor = {
+    id: number;
+    name: string;
+    contact: string;
+    approved: boolean;
+    username: string;
+    projects: any[];
 };
 
 type QuotesByCategory = {
@@ -37,41 +47,38 @@ export function ProjectDetailsDialog({
     onClose,
     onDelete,
 }: ProjectDetailsProps) {
-    const [quotesByCategory, setQuotesByCategory] = useState<QuotesByCategory>(
-        {}
-    );
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
+    const [isLoadingVendors, setIsLoadingVendors] = useState(true);
+    const [vendorError, setVendorError] = useState<string | null>(null);
 
-    // Fetch project details and quotes when the dialog opens
+    // Fetch project vendors when the dialog opens
     useEffect(() => {
-        const fetchProjectDetails = async () => {
-            setIsLoading(true);
-            setError(null);
+        const fetchProjectVendors = async () => {
+            setIsLoadingVendors(true);
+            setVendorError(null);
 
             try {
-                // Fetch quotes by category from API
+                // Fetch vendors associated with this project
                 const response = await fetch(
-                    `/api/projects/${project.id}/quotes-by-category`
+                    `/api/projects/${project.id}/vendors`
                 );
 
                 if (!response.ok) {
-                    throw new Error("Failed to load project details");
+                    throw new Error("Failed to load vendors");
                 }
 
                 const data = await response.json();
-                setQuotesByCategory(data);
+                setProjectVendors(data.vendors || []);
             } catch (err) {
-                console.error("Error fetching project details:", err);
-                setError("Could not load project details");
-                // Fallback to empty object if API fails
-                setQuotesByCategory({});
+                console.error("Error fetching project vendors:", err);
+                setVendorError("Could not load vendor information");
+                setProjectVendors([]);
             } finally {
-                setIsLoading(false);
+                setIsLoadingVendors(false);
             }
         };
 
-        fetchProjectDetails();
+        fetchProjectVendors();
     }, [project.id]);
 
     const formatDate = (dateString: string) => {
@@ -136,44 +143,50 @@ export function ProjectDetailsDialog({
                     </div>
                 </div>
 
-                {/* Quotes per Tag Section */}
+                {/* Vendors Section */}
                 <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Quotes by Category</h3>
-                    <ScrollArea className="h-[200px] rounded-md border p-4">
-                        {isLoading ? (
+                    <h3 className="text-sm font-medium">Associated Vendors</h3>
+                    <ScrollArea className="h-[150px] rounded-md border p-4">
+                        {isLoadingVendors ? (
                             <div className="flex items-center justify-center h-full">
                                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                <span className="ml-2">Loading quotes...</span>
+                                <span className="ml-2">Loading vendors...</span>
                             </div>
-                        ) : error ? (
+                        ) : vendorError ? (
                             <div className="flex items-center justify-center h-full text-destructive">
                                 <AlertTriangle className="h-5 w-5 mr-2" />
-                                <span>{error}</span>
+                                <span>{vendorError}</span>
                             </div>
-                        ) : Object.keys(quotesByCategory).length > 0 ? (
+                        ) : projectVendors.length > 0 ? (
                             <div className="space-y-2">
-                                {Object.entries(quotesByCategory).map(
-                                    ([category, count]) => (
-                                        <div
-                                            key={category}
-                                            className="flex items-center justify-between p-3 border rounded-lg"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Tag className="h-4 w-4 text-muted-foreground" />
-                                                <span className="font-medium">
-                                                    {category}
-                                                </span>
-                                            </div>
-                                            <Badge variant="secondary">
-                                                {count} quotes
-                                            </Badge>
+                                {projectVendors.map((vendor) => (
+                                    <div
+                                        key={vendor.id}
+                                        className="flex items-center justify-between p-3 border rounded-lg"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Users className="h-4 w-4 text-muted-foreground" />
+                                            <span className="font-medium">
+                                                {vendor.name}
+                                            </span>
                                         </div>
-                                    )
-                                )}
+                                        <Badge
+                                            variant={
+                                                vendor.approved
+                                                    ? "default"
+                                                    : "outline"
+                                            }
+                                        >
+                                            {vendor.approved
+                                                ? "Approved"
+                                                : "Pending"}
+                                        </Badge>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                                <p>No quotes available for this project yet.</p>
+                                <p>No vendors associated with this project.</p>
                             </div>
                         )}
                     </ScrollArea>

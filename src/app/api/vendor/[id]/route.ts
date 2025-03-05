@@ -1,8 +1,6 @@
 // app/api/vendor/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // GET a specific vendor
 export async function GET(
@@ -98,12 +96,11 @@ export async function PATCH(
 
 // DELETE - Remove a vendor
 export async function DELETE(
-    req: NextRequest,
-    context: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id: vendorIdString } = context.params;
-        const id = parseInt(vendorIdString);
+        const id = parseInt(params.id);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -112,6 +109,9 @@ export async function DELETE(
         // Check if vendor exists
         const vendor = await prisma.vendor.findUnique({
             where: { id },
+            include: {
+                projects: true, // Include relationships to check
+            },
         });
 
         if (!vendor) {
@@ -121,20 +121,38 @@ export async function DELETE(
             );
         }
 
-        // Delete the vendor - Prisma will automatically handle the deletion of related records
-        // in the VendorProject junction table due to referential actions
-        await prisma.vendor.delete({
+        // First delete any VendorProject entries
+        if (vendor.projects.length > 0) {
+            await prisma.vendorProject.deleteMany({
+                where: { vendorId: id },
+            });
+        }
+
+        // Delete any quotes associated with this vendor
+        await prisma.quote.deleteMany({
+            where: { vendorId: id },
+        });
+
+        // Delete any BOQs associated with this vendor
+        await prisma.bOQ.deleteMany({
+            where: { vendorId: id },
+        });
+
+        // Delete the vendor
+        const deleted = await prisma.vendor.delete({
             where: { id },
         });
 
-        return NextResponse.json(
-            { message: "Vendor deleted successfully" },
-            { status: 200 }
-        );
+        return NextResponse.json(deleted);
     } catch (error) {
         console.error("Error deleting vendor:", error);
+
+        // Check for specific Prisma errors
+        const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+
         return NextResponse.json(
-            { error: "Failed to delete vendor" },
+            { error: "Failed to delete vendor", details: errorMessage },
             { status: 500 }
         );
     }

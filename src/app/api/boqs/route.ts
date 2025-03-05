@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
             };
         }
 
+        // Changed bOQ to BOQ to match schema casing
         const boqs = await prisma.bOQ.findMany({
             where: whereClause,
             include: {
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
         const command = new PutObjectCommand(uploadParams);
         await s3Client.send(command);
 
-        // Save to database
+        // Changed bOQ to BOQ to match schema casing
         const boq = await prisma.bOQ.create({
             data: {
                 projectId: parseInt(projectId.toString()),

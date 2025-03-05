@@ -18,6 +18,15 @@ export async function GET(request: NextRequest, { params }: Params) {
 
         const project = await prisma.project.findUnique({
             where: { id },
+            include: {
+                boqs: true,
+                quotes: true,
+                vendors: {
+                    include: {
+                        vendor: true,
+                    },
+                },
+            },
         });
 
         if (!project) {
@@ -47,26 +56,58 @@ export async function PUT(request: NextRequest, { params }: Params) {
         }
 
         // Format tags if they come as a string
-        let tags = body.tags;
-        if (body.tags && !Array.isArray(body.tags)) {
-            tags = body.tags.split(",").map((tag: string) => tag.trim());
+        let tags = Array.isArray(body.tags)
+            ? body.tags
+            : typeof body.tags === "string"
+            ? body.tags.split(",").map((tag: string) => tag.trim())
+            : undefined;
+
+        // Process update data
+        const updateData: any = {};
+
+        if (body.name !== undefined) updateData.name = body.name;
+        if (body.description !== undefined)
+            updateData.description = body.description;
+        if (body.deadline) updateData.deadline = new Date(body.deadline);
+        if (tags !== undefined) updateData.tags = { set: tags };
+
+        // Handle relationships if needed
+        if (Array.isArray(body.boqs)) {
+            updateData.boqs = { set: body.boqs.map((id: number) => ({ id })) };
         }
 
-        // Update deadline if it's provided
-        let deadline = undefined;
-        if (body.deadline) {
-            deadline = new Date(body.deadline);
+        if (Array.isArray(body.quotes)) {
+            updateData.quotes = {
+                set: body.quotes.map((id: number) => ({ id })),
+            };
+        }
+
+        // Vendors need special handling through the join table
+        if (Array.isArray(body.vendors)) {
+            // First delete existing vendor connections
+            await prisma.vendorProject.deleteMany({
+                where: { projectId: id },
+            });
+
+            // Then create new ones
+            updateData.vendors = {
+                create: body.vendors.map((vendorId: number) => ({
+                    vendor: { connect: { id: vendorId } },
+                })),
+            };
         }
 
         const project = await prisma.project.update({
             where: { id },
-            data: {
-                name: body.name,
-                description: body.description,
-                vendors: body.vendors,
-                quotes: body.quotes,
-                deadline: deadline,
-                ...(tags && { tags }),
+            data: updateData,
+            include: {
+                boqs: true,
+                quotes: true,
+                vendors: {
+                    include: {
+                        vendor: true,
+                    },
+                },
             },
         });
 
@@ -74,7 +115,11 @@ export async function PUT(request: NextRequest, { params }: Params) {
     } catch (error) {
         console.error("Error updating project:", error);
         return NextResponse.json(
-            { error: "Failed to update project" },
+            {
+                error: "Failed to update project",
+                details:
+                    error instanceof Error ? error.message : "Unknown error",
+            },
             { status: 500 }
         );
     }
@@ -88,6 +133,24 @@ export async function DELETE(request: NextRequest, { params }: Params) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
+        // First delete all related records to avoid foreign key constraint errors
+
+        // 1. Delete VendorProject associations
+        await prisma.vendorProject.deleteMany({
+            where: { projectId: id },
+        });
+
+        // 2. Delete BOQs related to this project
+        await prisma.bOQ.deleteMany({
+            where: { projectId: id },
+        });
+
+        // 3. Delete Quotes related to this project
+        await prisma.quote.deleteMany({
+            where: { projectId: id },
+        });
+
+        // 4. Now delete the project itself
         await prisma.project.delete({
             where: { id },
         });
@@ -96,7 +159,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     } catch (error) {
         console.error("Error deleting project:", error);
         return NextResponse.json(
-            { error: "Failed to delete project" },
+            {
+                error: "Failed to delete project",
+                details:
+                    error instanceof Error ? error.message : "Unknown error",
+            },
             { status: 500 }
         );
     }

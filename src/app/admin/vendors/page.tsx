@@ -74,7 +74,7 @@ export default function Page() {
             }
 
             const data = await response.json();
-            setVendors(data.vendors);
+            setVendors(data);
         } catch (error) {
             console.error("Error fetching vendors:", error);
             toast.error("Failed to load vendors. Please try again.");
