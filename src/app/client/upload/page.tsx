@@ -1,28 +1,115 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
+"use client";
 
-const boqDocuments = [
-  { id: 1, name: "Invoice1.pdf", uploadDate: "2023-07-15", notes: "Required materials " },
-  { id: 2, name: "Invoice2.pdf", uploadDate: "2023-07-16", notes: "Revised quantities" },
-]
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useRouter } from "next/navigation";
 
 export default function BOQPage() {
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [notes, setNotes] = useState("");
+  const [uploadedInvoices, setUploadedInvoices] = useState([]);
+  const router = useRouter();
+
+  // ✅ Fetch projects assigned to this vendor
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const res = await fetch("/api/clientapi/dashboard/projects");
+        if (!res.ok) throw new Error("Failed to fetch projects");
+        const data = await res.json();
+        setProjects(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchProjects();
+  }, []);
+
+  // ✅ Fetch uploaded invoices
+  useEffect(() => {
+    async function fetchInvoices() {
+      try {
+        const res = await fetch("/api/clientapi/uploads/invoices");
+        if (!res.ok) throw new Error("Failed to fetch invoices");
+        const data = await res.json();
+        setUploadedInvoices(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchInvoices();
+  }, []);
+
+  // ✅ Handle file upload
+  async function handleUpload() {
+    if (!file || !selectedProject) {
+      alert("Please select a project and choose a file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("projectId", selectedProject);
+    formData.append("notes", notes);
+
+    try {
+      const res = await fetch("/api/clientapi/uploads", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+      alert("Invoice uploaded successfully!");
+
+      // Refresh uploaded invoices
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to upload invoice.");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Performa Invoice & Management</h1>
+      
+      {/* Upload Form */}
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <h2 className="text-xl font-semibold mb-4">Upload New Invoice</h2>
           <div className="space-y-4">
-            <Input type="file" />
-            <Textarea placeholder="Add notes or remarks" />
-            <Button>Upload BOQ</Button>
+            {/* ✅ Select Project Dropdown */}
+            <select
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+              className="border p-2 w-full"
+            >
+              <option value="">Select a project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+
+            {/* ✅ File Upload */}
+            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            
+            {/* ✅ Notes */}
+            <Textarea placeholder="Add notes or remarks" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+            <Button onClick={handleUpload}>Upload Invoice</Button>
           </div>
         </div>
+
+        {/* Uploaded Invoices */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Uploaded  Invoices</h2>
+          <h2 className="text-xl font-semibold mb-4">Uploaded Invoices</h2>
           <Table>
             <TableHeader>
               <TableRow>
@@ -33,15 +120,15 @@ export default function BOQPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {boqDocuments.map((doc) => (
+              {uploadedInvoices.map((doc) => (
                 <TableRow key={doc.id}>
-                  <TableCell>{doc.name}</TableCell>
-                  <TableCell>{doc.uploadDate}</TableCell>
+                  <TableCell>{doc.fileName}</TableCell>
+                  <TableCell>{new Date(doc.uploadDate).toLocaleDateString()}</TableCell>
                   <TableCell>{doc.notes}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm">
-                      View
-                    </Button>
+                    <a href={doc.filePath} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm">View</Button>
+                    </a>
                   </TableCell>
                 </TableRow>
               ))}
@@ -50,5 +137,5 @@ export default function BOQPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
