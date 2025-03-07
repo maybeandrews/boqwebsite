@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Trash2 } from "lucide-react";
 
 // Define types based on your API schema
 type Project = {
@@ -214,6 +214,30 @@ export default function BOQPage() {
         }
     };
 
+    const handleDeleteBOQ = async (id: number) => {
+        if (!confirm("Are you sure you want to delete this BOQ?")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/boqs/${id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete BOQ");
+            }
+
+            toast.success("BOQ deleted successfully");
+
+            // Refresh the BOQs list
+            fetchBOQs(selectedProject);
+        } catch (err) {
+            console.error("Error deleting BOQ:", err);
+            toast.error("Failed to delete BOQ");
+        }
+    };
+
     return (
         <div className="space-y-6 overflow-hidden p-6">
             <h1 className="text-3xl font-bold">BOQ Upload & Management</h1>
@@ -362,15 +386,30 @@ export default function BOQPage() {
                                                 {boq.notes || "No notes"}
                                             </TableCell>
                                             <TableCell>
-                                                <a
-                                                    href={boq.downloadUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                                                >
-                                                    <Download className="h-4 w-4 mr-1" />
-                                                    Download
-                                                </a>
+                                                <div className="flex gap-2">
+                                                    <a
+                                                        href={boq.downloadUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                                                    >
+                                                        <Download className="h-4 w-4 mr-1" />
+                                                        Download
+                                                    </a>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                                        onClick={() =>
+                                                            handleDeleteBOQ(
+                                                                boq.id
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-1" />
+                                                        Delete
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
