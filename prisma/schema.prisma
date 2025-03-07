@@ -47,7 +47,6 @@ model BOQ {
   projectId     Int
   fileName      String
   filePath      String
-  roughEstimate Decimal? @db.Decimal(10, 2)
   vendorId      Int?
   category      String
   notes         String?

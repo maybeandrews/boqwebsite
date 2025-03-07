@@ -1,8 +1,10 @@
 // app/api/vendor/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
+const SALT_ROUNDS = 10; // Standard salt rounds for bcrypt
 
 // GET all vendors
 export async function GET(req: NextRequest) {
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// POST - Create a new vendor
+// POST - Create a new vendor with hashed password
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -67,18 +69,29 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Create vendor data object
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+        // Create vendor data object with hashed password
         const vendorData = {
             name,
             contact,
             approved: false,
             username,
-            password, // Basic implementation - not hashed
+            password: hashedPassword, // Store hashed password, not plaintext
         };
 
         // Create the vendor
         const vendor = await prisma.vendor.create({
             data: vendorData,
+            select: {
+                id: true,
+                name: true,
+                contact: true,
+                approved: true,
+                username: true,
+                // Don't include password in response
+            },
         });
 
         return NextResponse.json({ vendor }, { status: 201 });
@@ -91,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// PUT - Update vendor
+// PUT - Also update to handle password hashing when password is changed
 export async function PUT(req: NextRequest) {
     try {
         const body = await req.json();
@@ -116,19 +129,30 @@ export async function PUT(req: NextRequest) {
             );
         }
 
+        // Prepare update data
+        const updateData: any = {};
+
+        if (name !== undefined) updateData.name = name;
+        if (contact !== undefined) updateData.contact = contact;
+        if (approved !== undefined) updateData.approved = approved;
+        if (username !== undefined) updateData.username = username;
+
+        // If password is being updated, hash the new password
+        if (password !== undefined && password) {
+            updateData.password = await bcrypt.hash(password, SALT_ROUNDS);
+        }
+
         // Update vendor
         const updatedVendor = await prisma.vendor.update({
             where: { id },
-            data: {
-                name: name !== undefined ? name : existingVendor.name,
-                contact:
-                    contact !== undefined ? contact : existingVendor.contact,
-                approved:
-                    approved !== undefined ? approved : existingVendor.approved,
-                username:
-                    username !== undefined ? username : existingVendor.username,
-                password:
-                    password !== undefined ? password : existingVendor.password,
+            data: updateData,
+            select: {
+                id: true,
+                name: true,
+                contact: true,
+                approved: true,
+                username: true,
+                // Don't include password in response
             },
         });
 

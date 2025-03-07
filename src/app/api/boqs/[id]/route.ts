@@ -95,8 +95,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
             await s3Client.send(deleteCommand);
         } catch (fileError) {
-            console.error("Error deleting file from S3:", fileError);
-            // Continue with deletion even if file deletion fails
+            console.warn(
+                "File might not exist in S3. Proceeding with DB deletion.",
+                fileError
+            );
         }
 
         // Delete the database record

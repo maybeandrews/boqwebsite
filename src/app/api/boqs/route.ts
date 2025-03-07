@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();
         const projectId = formData.get("projectId");
+        if (isNaN(Number(projectId))) {
+            return NextResponse.json(
+                { error: "Invalid projectId" },
+                { status: 400 }
+            );
+        }
         const category = formData.get("category");
         const notes = formData.get("notes");
         const file = formData.get("file") as File;
