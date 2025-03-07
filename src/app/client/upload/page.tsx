@@ -15,37 +15,37 @@ export default function BOQPage() {
   const [uploadedInvoices, setUploadedInvoices] = useState([]);
   const router = useRouter();
 
-  // ✅ Fetch projects assigned to this vendor
+  // ✅ Fetch projects (from /api/clientuploads)
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const res = await fetch("/api/clientapi/dashboard/projects");
+        const res = await fetch("/api/clientuploads");
         if (!res.ok) throw new Error("Failed to fetch projects");
         const data = await res.json();
-        setProjects(data);
+        setProjects(data.projects); // Ensure API returns `{ projects: [...] }`
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching projects:", error);
       }
     }
     fetchProjects();
   }, []);
 
-  // ✅ Fetch uploaded invoices
+  // ✅ Fetch uploaded invoices (from /api/clientuploads)
   useEffect(() => {
     async function fetchInvoices() {
       try {
-        const res = await fetch("/api/clientapi/uploads/invoices");
+        const res = await fetch("/api/clientuploads");
         if (!res.ok) throw new Error("Failed to fetch invoices");
         const data = await res.json();
-        setUploadedInvoices(data);
+        setUploadedInvoices(data.invoices); // Ensure API returns `{ invoices: [...] }`
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching invoices:", error);
       }
     }
     fetchInvoices();
   }, []);
 
-  // ✅ Handle file upload
+  // ✅ Handle file upload (POST to /api/clientuploads)
   async function handleUpload() {
     if (!file || !selectedProject) {
       alert("Please select a project and choose a file.");
@@ -58,7 +58,7 @@ export default function BOQPage() {
     formData.append("notes", notes);
 
     try {
-      const res = await fetch("/api/clientapi/uploads", {
+      const res = await fetch("/api/clientuploads", {
         method: "POST",
         body: formData,
       });
@@ -69,7 +69,7 @@ export default function BOQPage() {
       // Refresh uploaded invoices
       router.refresh();
     } catch (error) {
-      console.error(error);
+      console.error("Error uploading invoice:", error);
       alert("Failed to upload invoice.");
     }
   }

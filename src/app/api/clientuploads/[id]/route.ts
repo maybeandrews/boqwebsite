@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // Use singleton Prisma instance
 import { deleteFromS3 } from "@/lib/s3-config";
-
-// Use a single instance of PrismaClient (Singleton Pattern)
-const prisma = new PrismaClient();
 
 // GET route to fetch a specific Performa
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id?: string } }
 ) {
   try {
     const id = Number(params.id);
     
-    if (isNaN(id)) {
+    if (!params.id || isNaN(id)) {
       return NextResponse.json({ error: "Valid Performa ID is required" }, { status: 400 });
     }
 
@@ -43,13 +40,13 @@ export async function GET(
 // DELETE route to remove a Performa
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id?: string } }
 ) {
   try {
     const id = Number(params.id);
-    const vendorId = Number(req.nextUrl.searchParams.get("vendorId")); // ✅ Use `req.nextUrl`
+    const vendorId = Number(req.nextUrl.searchParams.get("vendorId") ?? NaN);
 
-    if (isNaN(id) || isNaN(vendorId)) {
+    if (!params.id || isNaN(id) || isNaN(vendorId)) {
       return NextResponse.json({ error: "Valid Performa ID and Vendor ID are required" }, { status: 400 });
     }
 
@@ -81,11 +78,11 @@ export async function DELETE(
 // PATCH route to update Performa status
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id?: string } }
 ) {
   try {
     const id = Number(params.id);
-    if (isNaN(id)) {
+    if (!params.id || isNaN(id)) {
       return NextResponse.json({ error: "Valid Performa ID is required" }, { status: 400 });
     }
 
@@ -95,6 +92,10 @@ export async function PATCH(
     }
 
     const { status, notes } = body;
+
+    if (!status && !notes) {
+      return NextResponse.json({ error: "At least one field (status or notes) must be provided" }, { status: 400 });
+    }
 
     if (status && !["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED"].includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
