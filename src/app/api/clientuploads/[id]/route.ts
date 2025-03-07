@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Use singleton Prisma instance
+import { prisma } from "@/lib/prisma";
 import { deleteFromS3 } from "@/lib/s3-config";
 
 // GET route to fetch a specific Performa
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id?: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
-    const id = Number(params.id);
-    
-    if (!params.id || isNaN(id)) {
+    const urlParts = req.nextUrl.pathname.split("/");
+    const id = Number(urlParts[urlParts.length - 1]);
+
+    if (!id || isNaN(id)) {
       return NextResponse.json({ error: "Valid Performa ID is required" }, { status: 400 });
     }
 
     const performa = await prisma.performa.findUnique({
       where: { id },
-      include: {
-        project: {
-          select: {
-            name: true,
-            description: true,
-          },
-        },
-      },
+      include: { project: { select: { name: true, description: true } } },
     });
 
     if (!performa) {
@@ -38,15 +29,13 @@ export async function GET(
 }
 
 // DELETE route to remove a Performa
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id?: string } }
-) {
+export async function DELETE(req: NextRequest) {
   try {
-    const id = Number(params.id);
+    const urlParts = req.nextUrl.pathname.split("/");
+    const id = Number(urlParts[urlParts.length - 1]);
     const vendorId = Number(req.nextUrl.searchParams.get("vendorId") ?? NaN);
 
-    if (!params.id || isNaN(id) || isNaN(vendorId)) {
+    if (!id || isNaN(id) || !vendorId || isNaN(vendorId)) {
       return NextResponse.json({ error: "Valid Performa ID and Vendor ID are required" }, { status: 400 });
     }
 
@@ -58,14 +47,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Performa not found or unauthorized" }, { status: 404 });
     }
 
-    // Delete file from S3
     try {
       await deleteFromS3(performa.fileKey);
     } catch (fileError) {
       console.error("Error deleting file from S3:", fileError);
     }
 
-    // Delete Performa from database
     await prisma.performa.delete({ where: { id } });
 
     return NextResponse.json({ message: "Performa deleted successfully" });
@@ -76,23 +63,21 @@ export async function DELETE(
 }
 
 // PATCH route to update Performa status
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id?: string } }
-) {
+export async function PATCH(req: NextRequest) {
   try {
-    const id = Number(params.id);
-    if (!params.id || isNaN(id)) {
+    const urlParts = req.nextUrl.pathname.split("/");
+    const id = Number(urlParts[urlParts.length - 1]);
+
+    if (!id || isNaN(id)) {
       return NextResponse.json({ error: "Valid Performa ID is required" }, { status: 400 });
     }
 
-    const body = await req.json().catch(() => null); // ✅ Handle JSON parsing safely
+    const body = await req.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
     const { status, notes } = body;
-
     if (!status && !notes) {
       return NextResponse.json({ error: "At least one field (status or notes) must be provided" }, { status: 400 });
     }
@@ -101,9 +86,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (notes) updateData.notes = notes;
+
     const updatedPerforma = await prisma.performa.update({
       where: { id },
-      data: { status, notes },
+      data: updateData,
     });
 
     return NextResponse.json(updatedPerforma);

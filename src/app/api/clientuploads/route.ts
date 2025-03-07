@@ -7,11 +7,11 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    const vendorId = formData.get("vendorId");
-    const projectId = formData.get("projectId");
-    const totalAmount = formData.get("totalAmount");
-    const notes = formData.get("notes") || "";
-    const validUntil = formData.get("validUntil") || null;
+    const vendorId = formData.get("vendorId") as string | null;
+    const projectId = formData.get("projectId") as string | null;
+    const totalAmount = formData.get("totalAmount") as string | null;
+    const notes = (formData.get("notes") as string) || "";
+    const validUntil = formData.get("validUntil") as string | null;
 
     // ✅ Validate required fields
     if (!file || !vendorId || !projectId || !totalAmount) {
@@ -51,6 +51,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ Validate & Convert `validUntil`
+    let validUntilDate: Date | null = null;
+    if (validUntil) {
+      const parsedDate = new Date(validUntil);
+      if (!isNaN(parsedDate.getTime())) {
+        validUntilDate = parsedDate;
+      } else {
+        return NextResponse.json(
+          { error: "Invalid date format for validUntil" },
+          { status: 400 }
+        );
+      }
+    }
+
     // ✅ Save to database
     const performa = await prisma.performa.create({
       data: {
@@ -64,7 +78,7 @@ export async function POST(req: NextRequest) {
         totalAmount: totalAmountNum,
         status: "PENDING",
         notes: notes.toString(),
-        validUntil: validUntil ? new Date(validUntil.toString()) : null,
+        validUntil: validUntilDate, // ✅ Ensure `validUntil` is a proper Date object
       },
     });
 

@@ -7,45 +7,45 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 
+// Define types
+type Project = {
+  id: number;
+  name: string;
+};
+
+type Invoice = {
+  id: number;
+  fileName: string;
+  uploadDate: string;
+  notes: string;
+  filePath: string;
+};
+
 export default function BOQPage() {
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState("");
-  const [uploadedInvoices, setUploadedInvoices] = useState([]);
+  const [notes, setNotes] = useState<string>("");
+  const [uploadedInvoices, setUploadedInvoices] = useState<Invoice[]>([]);
   const router = useRouter();
 
-  // ✅ Fetch projects (from /api/clientuploads)
+  // ✅ Fetch projects & invoices from `/api/clientupload`
   useEffect(() => {
-    async function fetchProjects() {
+    async function fetchData() {
       try {
-        const res = await fetch("/api/clientuploads");
-        if (!res.ok) throw new Error("Failed to fetch projects");
+        const res = await fetch("/api/clientupload");
+        if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
         setProjects(data.projects); // Ensure API returns `{ projects: [...] }`
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-      }
-    }
-    fetchProjects();
-  }, []);
-
-  // ✅ Fetch uploaded invoices (from /api/clientuploads)
-  useEffect(() => {
-    async function fetchInvoices() {
-      try {
-        const res = await fetch("/api/clientuploads");
-        if (!res.ok) throw new Error("Failed to fetch invoices");
-        const data = await res.json();
         setUploadedInvoices(data.invoices); // Ensure API returns `{ invoices: [...] }`
       } catch (error) {
-        console.error("Error fetching invoices:", error);
+        console.error("Error fetching data:", error);
       }
     }
-    fetchInvoices();
+    fetchData();
   }, []);
 
-  // ✅ Handle file upload (POST to /api/clientuploads)
+  // ✅ Handle file upload (POST to `/api/clientupload`)
   async function handleUpload() {
     if (!file || !selectedProject) {
       alert("Please select a project and choose a file.");
@@ -58,7 +58,7 @@ export default function BOQPage() {
     formData.append("notes", notes);
 
     try {
-      const res = await fetch("/api/clientuploads", {
+      const res = await fetch("/api/clientupload", {
         method: "POST",
         body: formData,
       });
@@ -77,7 +77,7 @@ export default function BOQPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Performa Invoice & Management</h1>
-      
+
       {/* Upload Form */}
       <div className="grid gap-6 md:grid-cols-2">
         <div>
@@ -99,7 +99,7 @@ export default function BOQPage() {
 
             {/* ✅ File Upload */}
             <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            
+
             {/* ✅ Notes */}
             <Textarea placeholder="Add notes or remarks" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
