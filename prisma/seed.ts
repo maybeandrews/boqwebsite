@@ -39,3 +39,18 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
+
+/*curl -X POST http://localhost:3000/api/vendor \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Administrator",
+    "contact": "admin@example.com",
+    "username": "admin",
+    "password": "your-secure-admin-password"
+  }
+  
+  use normal api calls to add vendor and then approve it
+  
+  
+  
+  '*/
