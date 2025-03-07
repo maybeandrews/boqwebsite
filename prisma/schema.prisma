@@ -16,18 +16,20 @@ model Project {
   boqs        BOQ[]
   quotes      Quote[]
   vendors     VendorProject[]
+  performas   Performa[]      // Added relation to Performa
 }
 
 model Vendor {
-  id       Int             @id @default(autoincrement())
-  name     String
-  contact  String
-  approved Boolean         @default(false)
-  username String          @unique
-  password String
-  BOQ      BOQ[]
-  quotes   Quote[]
-  projects VendorProject[]
+  id        Int             @id @default(autoincrement())
+  name      String
+  contact   String
+  approved  Boolean         @default(false)
+  username  String          @unique
+  password  String
+  BOQ       BOQ[]
+  quotes    Quote[]
+  projects  VendorProject[]
+  performas Performa[]      // Added relation to Performa
 }
 
 model VendorProject {
@@ -47,7 +49,7 @@ model BOQ {
   filePath      String
   roughEstimate Decimal? @db.Decimal(10, 2)
   vendorId      Int?
-  category      String   // Add this field
+  category      String
   notes         String?
   project       Project  @relation(fields: [projectId], references: [id])
   vendor        Vendor?  @relation(fields: [vendorId], references: [id])
@@ -66,8 +68,39 @@ model Quote {
   vendor    Vendor      @relation(fields: [vendorId], references: [id])
 }
 
+// New model for Performa uploads
+model Performa {
+  id              Int             @id @default(autoincrement())
+  vendorId        Int
+  projectId       Int
+  fileName        String
+  filePath        String          // S3 file path
+  fileKey         String          // S3 object key
+  fileSize        Int             // File size in bytes
+  mimeType        String          // Document mime type
+  uploadedAt      DateTime        @default(now())
+  totalAmount     Decimal         @db.Decimal(12, 2)
+  status          PerformaStatus  @default(PENDING)
+  notes           String?
+  validUntil      DateTime?       // Optional expiration date
+  termsAccepted   Boolean         @default(false)
+  
+  // Relation fields
+  project         Project         @relation(fields: [projectId], references: [id])
+  vendor          Vendor          @relation(fields: [vendorId], references: [id])
+}
+
+
 enum QuoteStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum PerformaStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
 }
