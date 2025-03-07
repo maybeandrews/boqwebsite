@@ -7,10 +7,13 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(""); // Clear any previous errors
+
         const result = await signIn("credentials", {
             username,
             password,
@@ -18,16 +21,35 @@ export default function LoginPage() {
         });
 
         if (result?.ok) {
-            // Redirect the user to a protected page, e.g., dashboard
-            router.push("/dashboard");
+            // Redirect based on username
+            if (username.toLowerCase() === "admin") {
+                router.push("/admin/dashboard");
+            } else {
+                router.push("/client/dashboard");
+            }
         } else {
-            alert("Login failed. Please check your credentials and try again.");
+            setError(
+                "Login failed. Please check your credentials and try again."
+            );
         }
     };
 
     return (
         <div style={{ maxWidth: "400px", margin: "2rem auto" }}>
-            <h1>Vendor Login</h1>
+            <h1>Login</h1>
+            {error && (
+                <div
+                    style={{
+                        color: "red",
+                        backgroundColor: "#ffeeee",
+                        padding: "10px",
+                        borderRadius: "5px",
+                        marginBottom: "1rem",
+                    }}
+                >
+                    {error}
+                </div>
+            )}
             <form onSubmit={handleSubmit}>
                 <input
                     type="text"
@@ -39,6 +61,9 @@ export default function LoginPage() {
                         display: "block",
                         width: "100%",
                         marginBottom: "1rem",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
                     }}
                 />
                 <input
@@ -51,9 +76,23 @@ export default function LoginPage() {
                         display: "block",
                         width: "100%",
                         marginBottom: "1rem",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
                     }}
                 />
-                <button type="submit" style={{ width: "100%" }}>
+                <button
+                    type="submit"
+                    style={{
+                        width: "100%",
+                        padding: "10px",
+                        backgroundColor: "#0070f3",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                    }}
+                >
                     Login
                 </button>
             </form>
