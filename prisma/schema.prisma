@@ -81,6 +81,7 @@ model Performa {
   totalAmount     Decimal         @db.Decimal(12, 2)
   status          PerformaStatus  @default(PENDING)
   notes           String?
+  category        String?         // Add this field if it doesn't exist
   validUntil      DateTime?       // Optional expiration date
   termsAccepted   Boolean         @default(false)
   

@@ -224,12 +224,14 @@ export default function Page() {
                                 <Card key={vendor.id} className="p-4">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h3 className="font-semibold">
-                                                {vendor.name}
-                                            </h3>
-                                            <p className="text-sm text-gray-600">
-                                                {vendor.contact}
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold">
+                                                    @{vendor.username}
+                                                </h3>
+                                                <span className="text-sm text-gray-500">
+                                                    ({vendor.name})
+                                                </span>
+                                            </div>
                                             {vendor.projects.length > 0 && (
                                                 <div className="mt-2">
                                                     <span className="text-xs text-gray-500">
