@@ -11,6 +11,7 @@ const boqDocuments = [
 export default function BOQPage() {
   return (
     <div className="space-y-6">
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-50 via-blue-100 to-blue-200 z-[-10]"></div>
       <h1 className="text-3xl font-bold">Performa Invoice & Management</h1>
       <div className="grid gap-6 md:grid-cols-2">
         <div>
@@ -18,11 +19,18 @@ export default function BOQPage() {
           <div className="space-y-4">
             <Input type="file" />
             <Textarea placeholder="Add notes or remarks" />
+            <Input 
+  type="number" 
+  placeholder="Enter amount" 
+  min="0" 
+  className="border p-2 rounded-md"
+/>
+ 
             <Button>Upload BOQ</Button>
           </div>
         </div>
         <div>
-          <h2 className="text-xl font-semibold mb-4">Uploaded  Invoices</h2>
+          <h2 className="text-xl font-semibold mb-4">Uploaded Invoices</h2>
           <Table>
             <TableHeader>
               <TableRow>
