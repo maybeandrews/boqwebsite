@@ -3,139 +3,478 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-// Define types
-type Project = {
-  id: number;
-  name: string;
-};
+// Define TypeScript interfaces
+interface Project {
+    id: number;
+    name: string;
+    description?: string;
+    deadline?: string;
+    tags?: string[];
+}
 
-type Invoice = {
-  id: number;
-  fileName: string;
-  uploadDate: string;
-  notes: string;
-  filePath: string;
-};
+interface Performa {
+    id: number;
+    fileName: string;
+    uploadedAt: string;
+    notes?: string;
+    totalAmount: number;
+    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    downloadUrl?: string;
+    category?: string;
+}
 
-export default function BOQPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>("");
-  const [file, setFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState<string>("");
-  const [uploadedInvoices, setUploadedInvoices] = useState<Invoice[]>([]);
-  const router = useRouter();
+export default function PerformaPage() {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [selectedProject, setSelectedProject] = useState<string>("");
+    const [categories, setCategories] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [file, setFile] = useState<File | null>(null);
+    const [notes, setNotes] = useState<string>("");
+    const [totalAmount, setTotalAmount] = useState<string>("");
+    const [uploadedPerformas, setUploadedPerformas] = useState<Performa[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const router = useRouter();
 
-  // ✅ Fetch projects & invoices from `/api/clientupload`
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/clientupload");
-        if (!res.ok) throw new Error("Failed to fetch data");
-        const data = await res.json();
-        setProjects(data.projects); // Ensure API returns `{ projects: [...] }`
-        setUploadedInvoices(data.invoices); // Ensure API returns `{ invoices: [...] }`
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
+    // Fetch projects assigned to the current vendor
+    useEffect(() => {
+        async function fetchAssignedProjects() {
+            setIsLoading(true);
+            try {
+                // Get the current session to extract vendorId
+                const sessionRes = await fetch("/api/auth/session");
+                const session = await sessionRes.json();
+
+                if (!session?.user?.id) {
+                    toast.error("You must be logged in to view projects");
+                    return;
+                }
+
+                // Fetch only projects assigned to this vendor
+                const res = await fetch(
+                    `/api/clientuploads?vendorId=${session.user.id}`
+                );
+                if (!res.ok) throw new Error("Failed to fetch projects");
+                const data = await res.json();
+                setProjects(data);
+            } catch (error) {
+                console.error("Error fetching assigned projects:", error);
+                toast.error("Failed to load assigned projects");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchAssignedProjects();
+    }, []);
+
+    // Fetch project categories when project changes
+    useEffect(() => {
+        if (!selectedProject) {
+            setCategories([]);
+            setSelectedCategory("");
+            return;
+        }
+
+        async function fetchProjectDetails() {
+            try {
+                const res = await fetch(`/api/projects/${selectedProject}`);
+                if (!res.ok) throw new Error("Failed to fetch project details");
+                const data = await res.json();
+
+                // Extract unique categories/tags from the project
+                if (data.tags && Array.isArray(data.tags)) {
+                    setCategories(data.tags);
+                } else {
+                    setCategories([]);
+                }
+            } catch (error) {
+                console.error("Error fetching project details:", error);
+                toast.error("Failed to load project categories");
+            }
+        }
+
+        fetchProjectDetails();
+    }, [selectedProject]);
+
+    // Function to refresh performas
+    const refreshPerformas = async () => {
+        if (!selectedProject) return;
+
+        setIsLoading(true);
+        try {
+            const sessionRes = await fetch("/api/auth/session");
+            const session = await sessionRes.json();
+
+            if (!session?.user?.id) return;
+
+            const res = await fetch(
+                `/api/clientuploads?projectId=${selectedProject}&vendorId=${session.user.id}&includeUrls=true`
+            );
+
+            if (!res.ok) throw new Error("Failed to refresh performas");
+            const data = await res.json();
+            setUploadedPerformas(data);
+        } catch (error) {
+            console.error("Error refreshing performas:", error);
+            // Don't show toast on refresh to avoid annoying the user
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Fetch uploaded performas when selected project changes
+    useEffect(() => {
+        if (!selectedProject) {
+            setUploadedPerformas([]);
+            return;
+        }
+
+        refreshPerformas();
+    }, [selectedProject]);
+
+    // Handle file change
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+        }
+    };
+
+    // Handle file upload
+    async function handleUpload() {
+        if (!file || !selectedProject) {
+            toast.error("Please select a project and choose a file");
+            return;
+        }
+
+        if (
+            !totalAmount ||
+            isNaN(parseFloat(totalAmount)) ||
+            parseFloat(totalAmount) <= 0
+        ) {
+            toast.error("Please enter a valid amount");
+            return;
+        }
+
+        if (categories.length > 0 && !selectedCategory) {
+            toast.error("Please select a category for this performa");
+            return;
+        }
+
+        setIsUploading(true);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("projectId", selectedProject);
+        formData.append("totalAmount", totalAmount);
+        if (notes) formData.append("notes", notes);
+        if (selectedCategory) formData.append("category", selectedCategory);
+
+        // Add vendorId from session (required by API)
+        try {
+            // Get the current session to extract vendorId
+            const sessionRes = await fetch("/api/auth/session");
+            const session = await sessionRes.json();
+
+            if (!session || !session.user || !session.user.id) {
+                toast.error("You must be logged in to upload performas");
+                setIsUploading(false);
+                return;
+            }
+
+            formData.append("vendorId", session.user.id.toString());
+
+            // Continue with upload
+            const res = await fetch("/api/clientuploads", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Upload failed");
+            }
+
+            toast.success("Performa uploaded successfully!");
+
+            // Reset form
+            setFile(null);
+            setNotes("");
+            setTotalAmount("");
+            setSelectedCategory("");
+
+            // Refresh the list using our dedicated function
+            await refreshPerformas();
+        } catch (error) {
+            console.error("Error uploading performa:", error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to upload performa"
+            );
+        } finally {
+            setIsUploading(false);
+        }
     }
-    fetchData();
-  }, []);
 
-  // ✅ Handle file upload (POST to `/api/clientupload`)
-  async function handleUpload() {
-    if (!file || !selectedProject) {
-      alert("Please select a project and choose a file.");
-      return;
-    }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("projectId", selectedProject);
-    formData.append("notes", notes);
+    // Format currency
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+        }).format(amount);
+    };
 
-    try {
-      const res = await fetch("/api/clientupload", {
-        method: "POST",
-        body: formData,
-      });
+    return (
+        <div className="space-y-6 p-6">
+            <h1 className="text-2xl font-bold">Performa Invoice Management</h1>
 
-      if (!res.ok) throw new Error("Upload failed");
-      alert("Invoice uploaded successfully!");
+            {/* Upload Form */}
+            <div className="grid gap-6 md:grid-cols-2">
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">
+                        Upload New Performa
+                    </h2>
+                    <div className="space-y-4">
+                        {/* Project Dropdown */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Select Project
+                            </label>
+                            <Select
+                                value={selectedProject}
+                                onValueChange={(value) => {
+                                    setSelectedProject(value);
+                                    setSelectedCategory(""); // Reset category when project changes
+                                }}
+                                disabled={isLoading || projects.length === 0}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select a project" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {projects.map((project) => (
+                                        <SelectItem
+                                            key={project.id}
+                                            value={project.id.toString()}
+                                        >
+                                            {project.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {projects.length === 0 && !isLoading && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                    No projects assigned to your account
+                                </p>
+                            )}
+                        </div>
 
-      // Refresh uploaded invoices
-      router.refresh();
-    } catch (error) {
-      console.error("Error uploading invoice:", error);
-      alert("Failed to upload invoice.");
-    }
-  }
+                        {/* Category Dropdown - Only show if project has categories */}
+                        {categories.length > 0 && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Select Category
+                                </label>
+                                <Select
+                                    value={selectedCategory}
+                                    onValueChange={setSelectedCategory}
+                                    disabled={!selectedProject || isUploading}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((category) => (
+                                            <SelectItem
+                                                key={category}
+                                                value={category}
+                                            >
+                                                {category}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Performa Invoice & Management</h1>
+                        {/* File Upload */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Upload Performa Document
+                            </label>
+                            <Input
+                                type="file"
+                                onChange={handleFileChange}
+                                accept=".pdf,.doc,.docx,.xls,.xlsx"
+                                disabled={isUploading || !selectedProject}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Supported formats: PDF, Word, Excel
+                            </p>
+                        </div>
 
-      {/* Upload Form */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Upload New Invoice</h2>
-          <div className="space-y-4">
-            {/* ✅ Select Project Dropdown */}
-            <select
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="border p-2 w-full"
-            >
-              <option value="">Select a project</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+                        {/* Amount */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Total Amount
+                            </label>
+                            <Input
+                                type="number"
+                                placeholder="Enter total amount"
+                                value={totalAmount}
+                                onChange={(e) => setTotalAmount(e.target.value)}
+                                disabled={isUploading || !selectedProject}
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
 
-            {/* ✅ File Upload */}
-            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                        {/* Notes */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Notes (Optional)
+                            </label>
+                            <Textarea
+                                placeholder="Add notes or remarks"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                disabled={isUploading || !selectedProject}
+                            />
+                        </div>
 
-            {/* ✅ Notes */}
-            <Textarea placeholder="Add notes or remarks" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                        <Button
+                            onClick={handleUpload}
+                            disabled={
+                                isUploading ||
+                                !selectedProject ||
+                                !file ||
+                                !totalAmount ||
+                                (categories.length > 0 && !selectedCategory)
+                            }
+                        >
+                            {isUploading && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {isUploading ? "Uploading..." : "Upload Performa"}
+                        </Button>
+                    </div>
+                </div>
 
-            <Button onClick={handleUpload}>Upload Invoice</Button>
-          </div>
+                {/* Uploaded Performas */}
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">
+                        Uploaded Performas
+                    </h2>
+
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-40">
+                            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                        </div>
+                    ) : !selectedProject ? (
+                        <div className="text-center py-10 border rounded-lg bg-gray-50">
+                            <p className="text-gray-500">
+                                Select a project to view uploaded performas.
+                            </p>
+                        </div>
+                    ) : uploadedPerformas.length === 0 ? (
+                        <div className="text-center py-10 border rounded-lg bg-gray-50">
+                            <p className="text-gray-500">
+                                No performas uploaded for this project yet.
+                            </p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>File Name</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    {categories.length > 0 && (
+                                        <TableHead>Category</TableHead>
+                                    )}
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {uploadedPerformas.map((performa) => (
+                                    <TableRow key={performa.id}>
+                                        <TableCell className="font-medium">
+                                            {performa.fileName}
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatCurrency(
+                                                performa.totalAmount
+                                            )}
+                                        </TableCell>
+                                        {categories.length > 0 && (
+                                            <TableCell>
+                                                {performa.category || "N/A"}
+                                            </TableCell>
+                                        )}
+                                        <TableCell>
+                                            <span
+                                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                                    performa.status
+                                                )}`}
+                                            >
+                                                {performa.status}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <a
+                                                href={performa.downloadUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                                            >
+                                                <Download className="h-4 w-4 mr-1" />
+                                                Download
+                                            </a>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            </div>
         </div>
+    );
+}
 
-        {/* Uploaded Invoices */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Uploaded Invoices</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Upload Date</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {uploadedInvoices.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell>{doc.fileName}</TableCell>
-                  <TableCell>{new Date(doc.uploadDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{doc.notes}</TableCell>
-                  <TableCell className="text-right">
-                    <a href={doc.filePath} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" size="sm">View</Button>
-                    </a>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </div>
-  );
+// Helper function to get status color - simplified to just three states
+function getStatusColor(status: string): string {
+    switch (status) {
+        case "PENDING":
+            return "bg-yellow-100 text-yellow-800";
+        case "ACCEPTED":
+            return "bg-green-100 text-green-800";
+        case "REJECTED":
+            return "bg-red-100 text-red-800";
+        default:
+            return "bg-gray-100 text-gray-800";
+    }
 }
