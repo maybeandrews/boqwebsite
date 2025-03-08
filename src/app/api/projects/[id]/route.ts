@@ -140,17 +140,22 @@ export async function DELETE(request: NextRequest, { params }: Params) {
             where: { projectId: id },
         });
 
-        // 2. Delete BOQs related to this project
+        // 2. Delete Performas related to this project
+        await prisma.performa.deleteMany({
+            where: { projectId: id },
+        });
+
+        // 3. Delete BOQs related to this project
         await prisma.bOQ.deleteMany({
             where: { projectId: id },
         });
 
-        // 3. Delete Quotes related to this project
+        // 4. Delete Quotes related to this project
         await prisma.quote.deleteMany({
             where: { projectId: id },
         });
 
-        // 4. Now delete the project itself
+        // 5. Now delete the project itself
         await prisma.project.delete({
             where: { id },
         });
