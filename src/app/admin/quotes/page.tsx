@@ -1,11 +1,24 @@
 "use client";
 
-import { useState, ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Card,
     CardContent,
@@ -13,138 +26,191 @@ import {
     CardTitle,
     CardFooter,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-const initialProjects = ["Project A", "Project B", "Project C"];
-const initialBoqCategories = ["Electrical", "Plumbing", "Mechanical", "Civil Works"];
+// Define types based on our API and schema
+type Project = {
+    id: number;
+    name: string;
+};
 
-type BOQ = {
-    project: string;
-    category: string;
-    file: string;
-    notes: string;
-    uploadDate: string;
+type Vendor = {
+    id: number;
+    name: string;
+    contact: string;
 };
 
 type Quote = {
-    vendor: string;
-    project: string;
-    submissionDate: string;
-    pdf: string;
-    comments: string;
+    id: number;
+    vendorId: number;
+    projectId: number;
+    fileName: string;
+    filePath: string;
+    fileKey: string;
+    fileSize: number;
+    mimeType: string;
+    uploadedAt: string;
+    totalAmount: number;
     status: string;
-    category: string;
+    notes: string | null;
+    category: string | null;
+    validUntil: string | null;
+    termsAccepted: boolean;
+    project: {
+        id: number;
+        name: string;
+        description: string | null;
+    };
+    vendor: {
+        id: number;
+        name: string;
+        contact: string | null;
+    };
+    presignedUrl?: string;
 };
 
-const initialQuotes: Quote[] = [
-    { vendor: "Vendor A", project: "Project A", submissionDate: "2023-07-10", pdf: "quoteA.pdf", comments: "", status: "", category: "Electrical" },
-    { vendor: "Vendor B", project: "Project B", submissionDate: "2023-07-12", pdf: "quoteB.pdf", comments: "", status: "", category: "Plumbing" },
-    { vendor: "Vendor C", project: "Project C", submissionDate: "2023-07-14", pdf: "quoteC.pdf", comments: "", status: "", category: "Mechanical" },
-];
-
-export default function BOQPage() {
-    const [projects, setProjects] = useState<string[]>(initialProjects);
-    const [boqCategories, setBoqCategories] = useState<string[]>(initialBoqCategories);
+export default function QuotesPage() {
+    // State variables
+    const [loading, setLoading] = useState<boolean>(true);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
     const [selectedProject, setSelectedProject] = useState<string>("");
-    const [uploadedBOQs, setUploadedBOQs] = useState<BOQ[]>([]);
-    const [files, setFiles] = useState<{ [key: string]: File | null }>({});
-    const [notes, setNotes] = useState<{ [key: string]: string }>({});
+    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
+    const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState<boolean>(false);
+    const [quoteNotes, setQuoteNotes] = useState<string>("");
     const [newCategoryName, setNewCategoryName] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState<boolean>(false);
-    const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-    const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
-    const [acceptedQuotes, setAcceptedQuotes] = useState<Quote[]>([]);
-    const [rejectedQuotes, setRejectedQuotes] = useState<Quote[]>([]);
-    const [tableRows, setTableRows] = useState<Quote[]>([]);
 
-    const handleNoteChange = (category: string, event: ChangeEvent<HTMLTextAreaElement>) => {
-        setNotes({ ...notes, [category]: event.target.value });
-    };
+    // Fetch all quotes and related data
+    useEffect(() => {
+        async function fetchQuotes() {
+            try {
+                setLoading(true);
+                const res = await fetch("/api/quotes");
 
-    const handleUpload = () => {
-        if (!selectedProject) return alert("Please select a project");
+                if (!res.ok) {
+                    throw new Error("Failed to fetch quotes");
+                }
 
-        const newUploads = boqCategories
-            .map((category) => ({
-                project: selectedProject,
-                category,
-                file: "No file uploaded",
-                notes: notes[category] || "No notes",
-                uploadDate: new Date().toISOString().split("T")[0],
-            }));
-
-        setUploadedBOQs((prevUploads) => [...prevUploads, ...newUploads]);
-        setNotes({});
-    };
-
-    const handleDelete = (index: number) => {
-        setUploadedBOQs((prevUploads) => prevUploads.filter((_, i) => i !== index));
-    };
-
-    const handleAddBoqCategory = () => {
-        if (!newCategoryName.trim()) {
-            return alert("Please enter a category name.");
+                const data = await res.json();
+                setQuotes(data.quotes);
+                setProjects(data.projects);
+                setCategories(data.categories);
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching quotes:", error);
+                toast.error("Failed to load quotes");
+                setLoading(false);
+            }
         }
-        setBoqCategories([...boqCategories, newCategoryName]);
-        setNewCategoryName("");
-        setIsModalOpen(false);
-    };
 
-    const handleRenameCategory = (oldCategory: string, newCategory: string) => {
-        setBoqCategories((prevCategories) =>
-            prevCategories.map((category) => (category === oldCategory ? newCategory : category))
-        );
-        setNotes((prevNotes) => {
-            const newNotes = { ...prevNotes, [newCategory]: prevNotes[oldCategory] };
-            delete newNotes[oldCategory];
-            return newNotes;
-        });
-    };
+        fetchQuotes();
+    }, []);
 
-    const handleDeleteCategory = (category: string) => {
-        setBoqCategories((prevCategories) => prevCategories.filter((cat) => cat !== category));
-        setNotes((prevNotes) => {
-            const newNotes = { ...prevNotes };
-            delete newNotes[category];
-            return newNotes;
-        });
+    // Filter quotes when project is selected
+    useEffect(() => {
+        if (selectedProject) {
+            const projectId = parseInt(selectedProject);
+            setFilteredQuotes(
+                quotes.filter((quote) => quote.projectId === projectId)
+            );
+        } else {
+            setFilteredQuotes(quotes);
+        }
+    }, [selectedProject, quotes]);
+
+    // Handle approve/reject quote
+    const handleUpdateQuoteStatus = async (status: string) => {
+        if (!selectedQuote) return;
+
+        try {
+            const res = await fetch(`/api/quotes/${selectedQuote.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    status,
+                    notes: quoteNotes,
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to update quote status");
+            }
+
+            const { quote: updatedQuote } = await res.json();
+
+            // Update quotes list with updated quote (more fault tolerant)
+            setQuotes(
+                quotes.map((quote) => {
+                    if (quote.id === updatedQuote.id) {
+                        // Keep existing project and vendor information if not in the response
+                        return {
+                            ...updatedQuote,
+                            project: updatedQuote.project || quote.project,
+                            vendor: updatedQuote.vendor || quote.vendor,
+                        };
+                    }
+                    return quote;
+                })
+            );
+
+            toast.success(`Quote ${status.toLowerCase()} successfully`);
+            setIsQuoteModalOpen(false);
+        } catch (error) {
+            console.error("Error updating quote:", error);
+            toast.error("Failed to update quote status");
+        }
     };
 
     const handleViewQuote = (quote: Quote) => {
         setSelectedQuote(quote);
+        setQuoteNotes(quote.notes || "");
         setIsQuoteModalOpen(true);
     };
 
     const handleApproveQuote = () => {
-        if (selectedQuote) {
-            const updatedQuote = { ...selectedQuote, status: "Approved" };
-            setAcceptedQuotes([...acceptedQuotes, updatedQuote]);
-            setQuotes(quotes.filter((quote) => quote !== selectedQuote));
-            setTableRows([...tableRows, updatedQuote]);
-            setIsQuoteModalOpen(false);
-        }
+        handleUpdateQuoteStatus("APPROVED");
     };
 
     const handleRejectQuote = () => {
-        if (selectedQuote) {
-            const updatedQuote = { ...selectedQuote, status: "Rejected" };
-            setRejectedQuotes([...rejectedQuotes, updatedQuote]);
-            setQuotes(quotes.filter((quote) => quote !== selectedQuote));
-            setTableRows([...tableRows, updatedQuote]);
-            setIsQuoteModalOpen(false);
+        handleUpdateQuoteStatus("REJECTED");
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString();
+    };
+
+    // View PDF link
+    const handleViewPDF = (quote: Quote) => {
+        // Use the presignedUrl instead of filePath
+        if (quote.presignedUrl) {
+            window.open(quote.presignedUrl, "_blank");
+        } else {
+            toast.error("Cannot access PDF file");
         }
     };
 
-    const handleViewPDF = (pdf: string) => {
-        window.open(pdf, "_blank");
-    };
-
-    const handleCommentChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-        if (selectedQuote) {
-            setSelectedQuote({ ...selectedQuote, comments: event.target.value });
-        }
-    };
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                <span className="ml-2">Loading quotes...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -156,109 +222,273 @@ export default function BOQPage() {
                             <SelectValue placeholder="Select a project" />
                         </SelectTrigger>
                         <SelectContent>
-                            {projects.map((project, index) => (
-                                <SelectItem key={index} value={project}>{project}</SelectItem>
+                            {projects.map((project) => (
+                                <SelectItem
+                                    key={project.id}
+                                    value={project.id.toString()}
+                                >
+                                    {project.name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+
+                    {/* Cards to show quotes when project is selected */}
                     {selectedProject && (
                         <div className="space-y-4 mt-4">
-                            {boqCategories.map((category, index) => (
-                                <div key={category}>
-                                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 rounded-lg">
-                                        <CardContent>
-                                            <div className="rounded-md mb-4">
-                                                <p><strong>Vendor:</strong> Vendor {String.fromCharCode(65 + index)}</p>
-                                                <p><strong>Category:</strong> {category}</p>
-                                                <p><strong>Submitted Date:</strong> {new Date().toISOString().split("T")[0]}</p>
-                                                <div className="mb-4"></div>
-                                                <Button className="mb-4">View File</Button>
-                                                <Textarea placeholder="Add notes or remarks" onChange={(e) => handleNoteChange(category, e)} className="mb-2" />
-                                            </div>
-                                            <div className="flex justify-center space-x-4">
-                                                <Button onClick={handleApproveQuote} className="bg-green-500 text-white hover:bg-green-700 w-full">Accept</Button>
-                                                <Button onClick={handleRejectQuote} className="bg-red-500 text-white hover:bg-red-700 w-full">Reject</Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                            {filteredQuotes.length > 0 ? (
+                                filteredQuotes.map((quote) => (
+                                    <div key={quote.id}>
+                                        <Card
+                                            className="hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 rounded-lg"
+                                            onClick={() =>
+                                                handleViewQuote(quote)
+                                            }
+                                        >
+                                            <CardContent className="pt-6">
+                                                <div className="rounded-md mb-4">
+                                                    <p>
+                                                        <strong>Vendor:</strong>{" "}
+                                                        {quote.vendor.name}
+                                                    </p>
+                                                    <p>
+                                                        <strong>
+                                                            Category:
+                                                        </strong>{" "}
+                                                        {quote.category ||
+                                                            "General"}
+                                                    </p>
+                                                    <p>
+                                                        <strong>
+                                                            Submitted Date:
+                                                        </strong>{" "}
+                                                        {formatDate(
+                                                            quote.uploadedAt
+                                                        )}
+                                                    </p>
+                                                    <p>
+                                                        <strong>Amount:</strong>{" "}
+                                                        $
+                                                        {parseFloat(
+                                                            quote.totalAmount.toString()
+                                                        ).toLocaleString()}
+                                                    </p>
+                                                    <p>
+                                                        <strong>Status:</strong>{" "}
+                                                        <span
+                                                            className={
+                                                                quote.status ===
+                                                                "APPROVED"
+                                                                    ? "text-green-600 font-medium"
+                                                                    : quote.status ===
+                                                                      "REJECTED"
+                                                                    ? "text-red-600 font-medium"
+                                                                    : "text-yellow-600 font-medium"
+                                                            }
+                                                        >
+                                                            {quote.status}
+                                                        </span>
+                                                    </p>
+                                                    <div className="mb-4"></div>
+                                                    <Button
+                                                        className="mb-4"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleViewPDF(
+                                                                quote
+                                                            );
+                                                        }}
+                                                    >
+                                                        View File
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="mt-6 text-center p-6 bg-gray-50 rounded-lg">
+                                    <p className="text-gray-500">
+                                        No quotes found for this project
+                                    </p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     )}
                 </div>
-                {selectedProject && (
-                    <div className="overflow-x-auto">
-                        <Table className="w-full">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Vendor</TableHead>
-                                    <TableHead>Project</TableHead>
-                                    <TableHead>Submitted Date</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {tableRows.map((quote, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>{quote.vendor}</TableCell>
-                                        <TableCell>{quote.project}</TableCell>
-                                        <TableCell>{quote.submissionDate}</TableCell>
-                                        <TableCell>{quote.category}</TableCell>
-                                        <TableCell>{quote.status}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                )}
-            </div>
 
-            {/* Modal for adding new BOQ category */}
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add New BOQ Category</DialogTitle>
-                    </DialogHeader>
-                    <Input
-                        type="text"
-                        placeholder="New BOQ Category Name"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        className="mb-2"
-                    />
-                    <DialogFooter>
-                        <Button onClick={handleAddBoqCategory} className="bg-green-500 text-white hover:bg-green-700">Add</Button>
-                        <Button onClick={() => setIsModalOpen(false)} className="bg-gray-500 text-white hover:bg-gray-700">Cancel</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Table showing quotes */}
+                <div className="overflow-x-auto">
+                    <Table className="w-full">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Vendor</TableHead>
+                                <TableHead>Project</TableHead>
+                                <TableHead>Submitted Date</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {quotes.map((quote) => (
+                                <TableRow key={quote.id}>
+                                    <TableCell>{quote.vendor.name}</TableCell>
+                                    <TableCell>{quote.project.name}</TableCell>
+                                    <TableCell>
+                                        {formatDate(quote.uploadedAt)}
+                                    </TableCell>
+                                    <TableCell>
+                                        {quote.category || "General"}
+                                    </TableCell>
+                                    <TableCell>
+                                        <span
+                                            className={
+                                                quote.status === "APPROVED"
+                                                    ? "text-green-600 font-medium"
+                                                    : quote.status ===
+                                                      "REJECTED"
+                                                    ? "text-red-600 font-medium"
+                                                    : "text-yellow-600 font-medium"
+                                            }
+                                        >
+                                            {quote.status}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleViewQuote(quote)
+                                            }
+                                        >
+                                            View
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
 
             {/* Modal for viewing quote */}
             <Dialog open={isQuoteModalOpen} onOpenChange={setIsQuoteModalOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>View Quote</DialogTitle>
+                        <DialogTitle>Quote Details</DialogTitle>
                     </DialogHeader>
                     {selectedQuote && (
-                        <div className="quote-details-container">
-                            <p><strong>Vendor:</strong> {selectedQuote.vendor}</p>
-                            <p><strong>Project:</strong> {selectedQuote.project}</p>
-                            <p><strong>Submitted Date:</strong> {selectedQuote.submissionDate}</p>
-                            <p><strong>PDF:</strong> <Button onClick={() => handleViewPDF(selectedQuote.pdf)} className="bg-blue-500 text-white hover:bg-blue-700">View PDF</Button></p>
-                            <p><strong>Comments:</strong></p>
-                            <Textarea
-                                placeholder="Add comments"
-                                value={selectedQuote.comments}
-                                onChange={handleCommentChange}
-                                className="mb-2"
-                            />
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Vendor
+                                    </p>
+                                    <p className="font-medium">
+                                        {selectedQuote.vendor.name}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Project
+                                    </p>
+                                    <p className="font-medium">
+                                        {selectedQuote.project.name}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Category
+                                    </p>
+                                    <p className="font-medium">
+                                        {selectedQuote.category || "General"}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Submitted On
+                                    </p>
+                                    <p className="font-medium">
+                                        {formatDate(selectedQuote.uploadedAt)}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Amount
+                                    </p>
+                                    <p className="font-medium">
+                                        $
+                                        {parseFloat(
+                                            selectedQuote.totalAmount.toString()
+                                        ).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Status
+                                    </p>
+                                    <p
+                                        className={`font-medium ${
+                                            selectedQuote.status === "APPROVED"
+                                                ? "text-green-600"
+                                                : selectedQuote.status ===
+                                                  "REJECTED"
+                                                ? "text-red-600"
+                                                : "text-yellow-600"
+                                        }`}
+                                    >
+                                        {selectedQuote.status}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Button
+                                    onClick={() => handleViewPDF(selectedQuote)}
+                                    className="mt-2 w-full"
+                                >
+                                    View PDF
+                                </Button>
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-gray-500 mb-1">
+                                    Notes
+                                </p>
+                                <Textarea
+                                    placeholder="Add comments or notes about this quote"
+                                    value={quoteNotes}
+                                    onChange={(e) =>
+                                        setQuoteNotes(e.target.value)
+                                    }
+                                    className="mb-4"
+                                />
+                            </div>
                         </div>
                     )}
-                    <DialogFooter>
-                        <Button onClick={handleApproveQuote} className="bg-green-500 text-white hover:bg-green-700">Approve</Button>
-                        <Button onClick={handleRejectQuote} className="bg-red-500 text-white hover:bg-red-700">Reject</Button>
-                        <Button onClick={() => setIsQuoteModalOpen(false)} className="bg-gray-500 text-white hover:bg-gray-700">Close</Button>
+                    <DialogFooter className="flex justify-between">
+                        {selectedQuote &&
+                            selectedQuote.status === "PENDING" && (
+                                <>
+                                    <Button
+                                        onClick={handleApproveQuote}
+                                        className="bg-green-500 text-white hover:bg-green-700"
+                                    >
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        onClick={handleRejectQuote}
+                                        className="bg-red-500 text-white hover:bg-red-700"
+                                    >
+                                        Reject
+                                    </Button>
+                                </>
+                            )}
+                        <Button onClick={() => setIsQuoteModalOpen(false)}>
+                            Close
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
