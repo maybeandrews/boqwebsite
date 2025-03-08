@@ -303,7 +303,6 @@ export async function PUT(
         }
 
         if (notes !== null) updateData.notes = notes.toString();
-
         if (validUntil !== null && validUntil !== "") {
             try {
                 updateData.validUntil = new Date(validUntil.toString());

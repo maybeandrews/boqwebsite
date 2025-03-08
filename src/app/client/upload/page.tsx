@@ -236,6 +236,7 @@ export default function PerformaPage() {
         }
     }
 
+
     // Format currency
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("en-US", {
