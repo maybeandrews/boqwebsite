@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-50 to-gray-100">
+        <div className="min-h-screen flex flex-col items-center justify-center">
+            <div className="absolute h-full w-full inset-0 bg-gradient-to-b from-blue-100 via-blue-200 to-blue-400 z-[-10]"></div>
             <div className="max-w-3xl text-center space-y-8">
                 <h1 className="text-5xl font-bold text-gray-900">
                     Bill of Quantities Management System
@@ -16,21 +17,21 @@ export default function HomePage() {
                     comprehensive BOQ solution
                 </p>
 
-                <div className="flex gap-4 justify-center">
-                    <Link href="/admin/dashboard" passHref>
+                <div className="flex gap-4 justify-center items-center">
+                   { /* <Link href="/admin/dashboard" passHref>
                         <Button asChild size="lg" variant="default"> 
                             <span>Go to Dashboard</span> 
                         </Button>
-                    </Link>
+                    </Link> */}
 
                     <Link href="/login" passHref>
-                        <Button asChild size="lg" variant="outline"> 
+                        <Button asChild size="lg" variant="outline" className="bg-blue-500 text-white hover:bg-blue-600 hover:text-white"> 
                             <span>Login</span> 
                         </Button>
                     </Link>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 ">
                     <FeatureCard
                         title="Project Management"
                         description="Manage multiple construction projects efficiently"
@@ -52,7 +53,7 @@ export default function HomePage() {
 // ✅ Extracted to avoid hydration mismatch
 function FeatureCard({ title, description }: { title: string; description: string }) {
     return (
-        <div className="p-6 bg-white rounded-lg shadow-sm">
+        <div className="p-6 bg-blue-100 rounded-lg shadow-lg">
             <h3 className="font-semibold text-lg mb-2">{title}</h3>
             <p className="text-gray-600">{description}</p>
         </div>
