@@ -122,13 +122,16 @@ async function GET_performas(request: NextRequest) {
         const performas = await prisma.performa.findMany({
             where,
             orderBy: { uploadedAt: "desc" },
-            include: {
-                project: {
-                    select: {
-                        name: true,
-                        tags: true,
-                    },
-                },
+            select: {
+                id: true,
+                fileName: true,
+                fileKey: true,
+                uploadedAt: true,
+                totalAmount: true,
+                status: true,
+                notes: true,
+                category: true, // Make sure to include this
+                // other fields...
             },
         });
 
@@ -187,6 +190,7 @@ export async function POST(req: NextRequest) {
         const totalAmount = formData.get("totalAmount");
         const notes = formData.get("notes") || "";
         const validUntil = formData.get("validUntil") || null;
+        const category = formData.get("category") || null; // Make sure to capture category
 
         // Validate required fields
         if (!file || !vendorId || !projectId || !totalAmount) {
@@ -259,6 +263,7 @@ export async function POST(req: NextRequest) {
                 status: "PENDING",
                 notes: notes.toString(),
                 validUntil: validUntil ? new Date(validUntil.toString()) : null,
+                category: category ? category.toString() : null, // Save the category
             },
         });
 

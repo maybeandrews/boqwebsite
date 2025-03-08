@@ -40,7 +40,7 @@ interface Performa {
     totalAmount: number;
     status: "PENDING" | "ACCEPTED" | "REJECTED";
     downloadUrl?: string;
-    category?: string;
+    category?: string; // Make sure this is defined
 }
 
 export default function PerformaPage() {
@@ -430,7 +430,8 @@ export default function PerformaPage() {
                                         </TableCell>
                                         {categories.length > 0 && (
                                             <TableCell>
-                                                {performa.category || "N/A"}
+                                                {performa.category || "—"}{" "}
+                                                {/* Use an em dash instead of "N/A" for better UX */}
                                             </TableCell>
                                         )}
                                         <TableCell>
