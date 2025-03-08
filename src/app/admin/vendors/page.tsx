@@ -74,7 +74,13 @@ export default function Page() {
             }
 
             const data = await response.json();
-            setVendors(data);
+
+            // Filter out admin vendor
+            const filteredVendors = data.filter(
+                (vendor: Vendor) => vendor.username.toLowerCase() !== "admin"
+            );
+
+            setVendors(filteredVendors);
         } catch (error) {
             console.error("Error fetching vendors:", error);
             toast.error("Failed to load vendors. Please try again.");
@@ -92,6 +98,12 @@ export default function Page() {
             !newVendor.password
         ) {
             toast.error("Please fill in all required fields.");
+            return;
+        }
+
+        // Prevent creating admin users from this interface
+        if (newVendor.username.toLowerCase() === "admin") {
+            toast.error("Cannot create user with username 'admin'");
             return;
         }
 

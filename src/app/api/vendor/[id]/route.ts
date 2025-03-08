@@ -128,6 +128,11 @@ export async function DELETE(
             });
         }
 
+        // Delete any Performa entries associated with this vendor
+        await prisma.performa.deleteMany({
+            where: { vendorId: id },
+        });
+
         // Delete any quotes associated with this vendor
         await prisma.quote.deleteMany({
             where: { vendorId: id },
