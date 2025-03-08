@@ -41,7 +41,7 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="h-full w-full flex items-center justify-center bg-blue-200">
             <Card className="w-[400px]">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl text-center">
@@ -94,7 +94,7 @@ export default function SignupPage() {
                                     </p>
                                 )}
 
-                                <Button disabled={isLoading}>
+                                <Button disabled={isLoading} className="bg-blue-900 text-white hover:bg-blue-800">
                                     {isLoading && (
                                         <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                                     )}

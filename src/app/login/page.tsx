@@ -33,20 +33,17 @@ export default function LoginPage() {
             const result = await signIn("credentials", {
                 username,
                 password,
-                redirect: false, // We'll handle redirection manually
+                redirect: false,
             });
 
             if (result?.ok) {
-                // Redirect based on username
                 if (username.toLowerCase() === "admin") {
                     router.push("/admin/dashboard");
                 } else {
                     router.push("/client/dashboard");
                 }
             } else {
-                setError(
-                    "Login failed. Please check your credentials and try again."
-                );
+                setError("Login failed. Please check your credentials and try again.");
             }
         } catch (err) {
             setError("An error occurred. Please try again.");

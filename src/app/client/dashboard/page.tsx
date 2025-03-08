@@ -59,11 +59,12 @@ export default function ClientDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-50 via-blue-100 to-blue-2s00 z-[-10]"></div>
       <h1 className="text-3xl font-bold mb-10">Main Dashboard</h1>
 
       <div className="flex flex-col lg:flex-row justify-between space-y-6 lg:space-y-0 lg:space-x-6">
         {/* Project Details Card */}
-        <Card className="lg:w-1/3 shadow-md">
+        <Card className="lg:w-1/3 shadow-lg">
           <div className="w-full h-full flex flex-col justify-start items-center gap-4 p-4">
             {selectedProject ? (
               <>
