@@ -18,13 +18,11 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || "your-bucket-name";
 
-interface Params {
-    params: {
-        id: string;
-    };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+// Inline type for context parameter
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
     try {
         const id = parseInt(params.id);
 
@@ -66,7 +64,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
     try {
         const id = parseInt(params.id);
 
@@ -92,7 +93,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
                 Bucket: BUCKET_NAME,
                 Key: boq.filePath,
             });
-
             await s3Client.send(deleteCommand);
         } catch (fileError) {
             console.warn(
