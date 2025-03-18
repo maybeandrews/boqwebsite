@@ -20,16 +20,13 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || "your-bucket-name";
 
 // GET route to fetch a specific Performa
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { id?: string } }
-) {
+export async function GET(req: NextRequest) {
     try {
-        const id = Number(params.id);
+        const id = Number(req.url.split("/").pop());
         const includeUrl =
             req.nextUrl.searchParams.get("includeUrl") === "true";
 
-        if (!params.id || isNaN(id)) {
+        if (isNaN(id)) {
             return NextResponse.json(
                 { error: "Valid Performa ID is required" },
                 { status: 400 }
@@ -92,17 +89,14 @@ export async function GET(
 }
 
 // DELETE route to remove a Performa without using lib/s3-config
-export async function DELETE(
-    req: NextRequest,
-    { params }: { params: { id?: string } }
-) {
+export async function DELETE(req: NextRequest) {
     try {
-        const id = Number(params.id);
+        const id = Number(req.url.split("/").pop());
         // Make vendorId optional - admins might not need to provide it
         const vendorIdParam = req.nextUrl.searchParams.get("vendorId");
         const vendorId = vendorIdParam ? Number(vendorIdParam) : undefined;
 
-        if (!params.id || isNaN(id)) {
+        if (isNaN(id)) {
             return NextResponse.json(
                 { error: "Valid Performa ID is required" },
                 { status: 400 }
@@ -160,13 +154,10 @@ export async function DELETE(
 }
 
 // PATCH route to update Performa status
-export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id?: string } }
-) {
+export async function PATCH(req: NextRequest) {
     try {
-        const id = Number(params.id);
-        if (!params.id || isNaN(id)) {
+        const id = Number(req.url.split("/").pop());
+        if (isNaN(id)) {
             return NextResponse.json(
                 { error: "Valid Performa ID is required" },
                 { status: 400 }
@@ -258,13 +249,10 @@ export async function PATCH(
 }
 
 // PUT route to handle larger updates or file replacement
-export async function PUT(
-    req: NextRequest,
-    { params }: { params: { id?: string } }
-) {
+export async function PUT(req: NextRequest) {
     try {
-        const id = Number(params.id);
-        if (!params.id || isNaN(id)) {
+        const id = Number(req.url.split("/").pop());
+        if (isNaN(id)) {
             return NextResponse.json(
                 { error: "Valid Performa ID is required" },
                 { status: 400 }

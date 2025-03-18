@@ -4,12 +4,9 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // GET all vendors for a specific project
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
     try {
-        const projectId = parseInt(params.id);
+        const projectId = parseInt(req.url.split("/").pop() || "");
 
         if (isNaN(projectId)) {
             return NextResponse.json(

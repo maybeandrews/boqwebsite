@@ -3,13 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET a specific vendor
-export async function GET(
-    req: NextRequest,
-    context: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
     try {
-        const { id: vendorIdString } = context.params;
-        const id = parseInt(vendorIdString);
+        const id = parseInt(req.url.split("/").pop() || "");
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -45,13 +41,9 @@ export async function GET(
 }
 
 // PATCH - Update a vendor
-export async function PATCH(
-    req: NextRequest,
-    context: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest) {
     try {
-        const { id: vendorIdString } = context.params;
-        const id = parseInt(vendorIdString);
+        const id = parseInt(req.url.split("/").pop() || "");
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -95,12 +87,9 @@ export async function PATCH(
 }
 
 // DELETE - Remove a vendor
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = parseInt(request.url.split("/").pop() || "");
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });

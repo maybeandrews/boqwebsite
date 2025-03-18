@@ -8,9 +8,9 @@ interface Params {
     };
 }
 
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = parseInt(request.url.split("/").pop() || "");
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -46,9 +46,9 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 }
 
-export async function PUT(request: NextRequest, { params }: Params) {
+export async function PUT(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = parseInt(request.url.split("/").pop() || "");
         const body = await request.json();
 
         if (isNaN(id)) {
@@ -125,9 +125,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = parseInt(request.url.split("/").pop() || "");
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });

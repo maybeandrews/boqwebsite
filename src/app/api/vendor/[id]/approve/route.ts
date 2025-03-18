@@ -7,13 +7,9 @@ export const dynamic = "force-dynamic"; // Mark the route as dynamic
 const prisma = new PrismaClient();
 
 // PATCH - Toggle vendor approval status
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest) {
     try {
-        // No need for await here; parseInt is synchronous
-        const id = parseInt(params.id, 10);
+        const id = parseInt(request.url.split("/").pop() || "", 10);
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });

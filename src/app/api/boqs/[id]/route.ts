@@ -18,42 +18,36 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || "your-bucket-name";
 
-// Inline type for context parameter
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = request.url.split("/").pop();
 
-        if (isNaN(id)) {
+        if (!id) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
+        const parsedId = parseInt(id);
+        if (isNaN(parsedId)) {
+            return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+        }
         const boq = await prisma.bOQ.findUnique({
-            where: { id },
-            include: {
-                project: true,
-            },
+            where: { id: parsedId },
+            include: { project: true },
         });
-
         if (!boq) {
             return NextResponse.json(
                 { error: "BOQ not found" },
                 { status: 404 }
             );
         }
-
         // Generate a presigned URL for file download
         const command = new GetObjectCommand({
             Bucket: BUCKET_NAME,
             Key: boq.filePath,
         });
-
         const downloadUrl = await getSignedUrl(s3Client, command, {
             expiresIn: 3600,
         });
-
         return NextResponse.json({ ...boq, downloadUrl });
     } catch (error) {
         console.error("Error fetching BOQ:", error);
@@ -64,29 +58,29 @@ export async function GET(
     }
 }
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
     try {
-        const id = parseInt(params.id);
+        const id = request.url.split("/").pop();
 
-        if (isNaN(id)) {
+        if (!id) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
+        const parsedId = parseInt(id);
+
+        if (isNaN(parsedId)) {
+            return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+        }
         // Fetch the BOQ first to get the file path
         const boq = await prisma.bOQ.findUnique({
-            where: { id },
+            where: { id: parsedId },
         });
-
         if (!boq) {
             return NextResponse.json(
                 { error: "BOQ not found" },
                 { status: 404 }
             );
         }
-
         // Delete the file from S3
         try {
             const deleteCommand = new DeleteObjectCommand({
@@ -100,12 +94,10 @@ export async function DELETE(
                 fileError
             );
         }
-
         // Delete the database record
         await prisma.bOQ.delete({
-            where: { id },
+            where: { id: parsedId },
         });
-
         return NextResponse.json({ message: "BOQ deleted successfully" });
     } catch (error) {
         console.error("Error deleting BOQ:", error);

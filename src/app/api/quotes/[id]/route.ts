@@ -28,12 +28,9 @@ async function generatePresignedUrl(fileKey: string) {
     }
 }
 
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
     try {
-        const id = params.id;
+        const id = req.url.split("/").pop();
         if (!id) {
             return NextResponse.json(
                 { error: "Quote ID is required" },
@@ -85,12 +82,9 @@ export async function GET(
 }
 
 // Update a specific quote's status and add comments
-export async function PUT(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest) {
     try {
-        const id = params.id;
+        const id = req.url.split("/").pop();
         if (!id) {
             return NextResponse.json(
                 { error: "Quote ID is required" },
