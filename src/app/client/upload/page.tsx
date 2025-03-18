@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -116,10 +116,9 @@ export default function PerformaPage() {
         fetchProjectDetails();
     }, [selectedProject]);
 
-    // Function to refresh performas
-    const refreshPerformas = async () => {
+    // Define refreshPerformas as a useCallback
+    const refreshPerformas = useCallback(async () => {
         if (!selectedProject) return;
-
         setIsLoading(true);
         try {
             const sessionRes = await fetch("/api/auth/session");
@@ -136,13 +135,12 @@ export default function PerformaPage() {
             setUploadedPerformas(data);
         } catch (error) {
             console.error("Error refreshing performas:", error);
-            // Don't show toast on refresh to avoid annoying the user
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [selectedProject]);
 
-    // Fetch uploaded performas when selected project changes
+    // Call refreshPerformas when selectedProject changes
     useEffect(() => {
         if (!selectedProject) {
             setUploadedPerformas([]);
@@ -150,7 +148,7 @@ export default function PerformaPage() {
         }
 
         refreshPerformas();
-    }, [selectedProject]);
+    }, [selectedProject, refreshPerformas]);
 
     // Handle file change
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,7 +233,6 @@ export default function PerformaPage() {
             setIsUploading(false);
         }
     }
-
 
     // Format currency
     const formatCurrency = (amount: number) => {
