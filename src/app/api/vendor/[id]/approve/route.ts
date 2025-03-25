@@ -9,7 +9,10 @@ const prisma = new PrismaClient();
 // PATCH - Toggle vendor approval status
 export async function PATCH(request: NextRequest) {
     try {
-        const id = parseInt(request.url.split("/").pop() || "", 10);
+        // Extract ID using URL constructor
+        const url = new URL(request.url);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        const id = parseInt(pathParts[pathParts.length - 2], 10); // Get the second-to-last path segment
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
