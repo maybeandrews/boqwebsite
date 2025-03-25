@@ -46,7 +46,7 @@ main()
     "name": "Administrator",
     "contact": "admin@example.com",
     "username": "admin",
-    "password": "your-secure-admin-password"
+    "password": "123456"
   }
   
   use normal api calls to add vendor and then approve it
