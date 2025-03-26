@@ -6,7 +6,10 @@ const prisma = new PrismaClient();
 // GET all vendors for a specific project
 export async function GET(req: NextRequest) {
     try {
-        const projectId = parseInt(req.url.split("/").pop() || "");
+        // Extract ID using URL constructor
+        const url = new URL(req.url);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        const projectId = parseInt(pathParts[pathParts.length - 2], 10); // Get the second-to-last path segment
 
         if (isNaN(projectId)) {
             return NextResponse.json(
