@@ -56,7 +56,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-[#E5E5E5]">
             <Image
                 src="/lifescapelogo.png"
                 alt="Background"
@@ -65,7 +65,7 @@ export default function LoginPage() {
                 priority
                 className="absolute top-0 left-0 w-full h-full object-cover"
             />
-            <Card className="w-[400px] z-10 ml-[550px] mb-[100px] shadow-2xl">
+            <Card className="w-[400px] z-10 ml-[550px] mb-[100px] shadow-2xl border-0">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl text-center">
                         Welcome back
@@ -114,7 +114,7 @@ export default function LoginPage() {
                             )}
                             <Button
                                 disabled={isLoading}
-                                className="w-full bg-blue-900 text-white hover:bg-blue-800"
+                                className="w-full bg-orange-600 text-white hover:bg-orange-700 rounded-none"
                             >
                                 {isLoading && (
                                     <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
@@ -127,7 +127,7 @@ export default function LoginPage() {
                     <div className="mt-4 text-center text-sm">
                         <Link
                             href="/forgot-password"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-900 hover:text-blue-800"
                         >
                             Forgot password?
                         </Link>
@@ -137,7 +137,7 @@ export default function LoginPage() {
                         Don't have an account?{" "}
                         <Link
                             href="/signup"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-900 hover:text-blue-800"
                         >
                             Sign Up
                         </Link>

@@ -241,7 +241,7 @@ export default function BOQPage() {
     return (
         <div className="space-y-6 overflow-hidden p-6">
             <h1 className="text-3xl font-bold">BOQ Upload & Management</h1>
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-48 md:grid-cols-2">
                 <div>
                     <h2 className="text-xl font-semibold mb-4">
                         Upload New BOQ
