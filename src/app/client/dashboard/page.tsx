@@ -73,7 +73,7 @@ export default function ClientDashboard() {
         return (
             <div className="container mx-auto px-4 py-10">
                 <h1 className="text-3xl font-bold mb-10 text-gray-800">
-                    Client Dashboard
+                    Dashboard
                 </h1>
                 <Card className="w-full max-w-3xl mx-auto shadow-lg">
                     <CardContent className="pt-6">
@@ -103,7 +103,7 @@ export default function ClientDashboard() {
     return (
         <div className="container mx-auto px-4 py-10">
             <h1 className="text-3xl font-bold mb-10 text-gray-800">
-                Client Dashboard
+                Dashboard
             </h1>
 
             <div className="flex flex-col lg:flex-row justify-between space-y-6 lg:space-y-0 lg:space-x-8">

@@ -268,7 +268,7 @@ export default function QuotesPage() {
                                                     </p>
                                                     <p>
                                                         <strong>Amount:</strong>{" "}
-                                                        $
+                                                        ₹
                                                         {parseFloat(
                                                             quote.totalAmount.toString()
                                                         ).toLocaleString()}
@@ -419,7 +419,7 @@ export default function QuotesPage() {
                                         Amount
                                     </p>
                                     <p className="font-medium">
-                                        $
+                                        ₹
                                         {parseFloat(
                                             selectedQuote.totalAmount.toString()
                                         ).toLocaleString()}
