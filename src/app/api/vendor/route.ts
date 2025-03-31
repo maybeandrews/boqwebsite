@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { name, contact, username, password } = body;
+        const { name, contact, username, password, approved = true } = body;
 
         // Validate required fields
         if (!name || !contact || !username || !password) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         const vendorData = {
             name,
             contact,
-            approved: false,
+            approved, // Use the approved value from request, defaulting to true
             username,
             password: hashedPassword, // Store hashed password, not plaintext
         };
