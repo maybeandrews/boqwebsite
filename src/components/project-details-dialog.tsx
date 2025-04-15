@@ -8,8 +8,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Tag, AlertTriangle, Loader2, Users } from "lucide-react";
+import {
+    Trash2,
+    Tag,
+    AlertTriangle,
+    Loader2,
+    Users,
+    Pencil,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 // Update Project type definition to match the dashboard expectations
 type Project = {
@@ -40,16 +52,29 @@ type ProjectDetailsProps = {
     project: Project;
     onClose: () => void;
     onDelete: (projectId: string | number) => void;
+    onProjectUpdated?: () => void;
 };
 
 export function ProjectDetailsDialog({
     project,
     onClose,
     onDelete,
+    onProjectUpdated,
 }: ProjectDetailsProps) {
     const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
     const [isLoadingVendors, setIsLoadingVendors] = useState(true);
     const [vendorError, setVendorError] = useState<string | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        name: project.name,
+        description: project.description,
+        deadline: project.deadline ? project.deadline.slice(0, 10) : "",
+    });
+    const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
+    const [tags, setTags] = useState<string[]>(project.tags || []);
+    const [tagInput, setTagInput] = useState("");
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Fetch project vendors when the dialog opens
     useEffect(() => {
@@ -81,6 +106,60 @@ export function ProjectDetailsDialog({
         fetchProjectVendors();
     }, [project.id]);
 
+    // Fetch all vendors and set selected vendors when edit opens
+    useEffect(() => {
+        if (isEditOpen) {
+            fetchVendors();
+            // Set selected vendors from projectVendors
+            setSelectedVendors(projectVendors.map((v) => v.id));
+        }
+    }, [isEditOpen]);
+
+    const fetchVendors = async () => {
+        setIsLoadingVendors(true);
+        setVendorError(null);
+        try {
+            const response = await fetch("/api/vendor");
+            if (!response.ok) throw new Error("Failed to fetch vendors");
+            const data = await response.json();
+            setVendors(data.filter((v: Vendor) => v.approved));
+        } catch (error) {
+            setVendorError("Failed to load vendors");
+            toast.error("Failed to load vendors");
+        } finally {
+            setIsLoadingVendors(false);
+        }
+    };
+
+    const handleInputChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        const { id, value } = e.target;
+        setFormData((prev) => ({ ...prev, [id]: value }));
+    };
+
+    const handleVendorToggle = (vendorId: number) => {
+        setSelectedVendors((current) =>
+            current.includes(vendorId)
+                ? current.filter((id) => id !== vendorId)
+                : [...current, vendorId]
+        );
+    };
+
+    const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && tagInput.trim()) {
+            e.preventDefault();
+            if (!tags.includes(tagInput.trim())) {
+                setTags([...tags, tagInput.trim()]);
+            }
+            setTagInput("");
+        }
+    };
+
+    const removeTag = (tagToRemove: string) => {
+        setTags(tags.filter((tag) => tag !== tagToRemove));
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString();
     };
@@ -90,6 +169,15 @@ export function ProjectDetailsDialog({
             <DialogHeader>
                 <DialogTitle className="flex items-center">
                     <span className="flex-1">{project.name}</span>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => setIsEditOpen(true)}
+                        aria-label="Edit Project"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                         variant="destructive"
                         size="sm"
@@ -192,6 +280,181 @@ export function ProjectDetailsDialog({
                     </ScrollArea>
                 </div>
             </div>
+
+            {/* Edit Project Dialog */}
+            {isEditOpen && (
+                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                    <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Edit Project</DialogTitle>
+                            <DialogDescription>
+                                Update project details and select vendors.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                setIsSaving(true);
+                                try {
+                                    const res = await fetch(
+                                        `/api/projects/${project.id}`,
+                                        {
+                                            method: "PUT",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                                ...formData,
+                                                tags,
+                                                vendors: selectedVendors,
+                                            }),
+                                        }
+                                    );
+                                    if (!res.ok)
+                                        throw new Error(
+                                            "Failed to update project"
+                                        );
+                                    toast.success("Project updated!");
+                                    setIsEditOpen(false);
+                                    if (onProjectUpdated) onProjectUpdated();
+                                } catch (err: any) {
+                                    toast.error(
+                                        err.message || "Error updating project"
+                                    );
+                                } finally {
+                                    setIsSaving(false);
+                                }
+                            }}
+                            className="grid gap-4 py-4"
+                        >
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Project Name</Label>
+                                <Input
+                                    id="name"
+                                    value={formData.name}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea
+                                    id="description"
+                                    value={formData.description}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="deadline">Deadline</Label>
+                                <Input
+                                    id="deadline"
+                                    type="date"
+                                    value={formData.deadline}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="tags">Tags</Label>
+                                <div className="flex flex-wrap gap-2 p-2 border rounded-lg">
+                                    {tags.map((tag) => (
+                                        <div
+                                            key={tag}
+                                            className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-md"
+                                        >
+                                            <span>{tag}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTag(tag)}
+                                                className="hover:text-destructive"
+                                            >
+                                                <span className="sr-only">
+                                                    Remove
+                                                </span>
+                                                X
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <Input
+                                        id="tags"
+                                        value={tagInput}
+                                        onChange={(e) =>
+                                            setTagInput(e.target.value)
+                                        }
+                                        onKeyDown={handleAddTag}
+                                        placeholder="Type and press Enter to add tags"
+                                        className="border-0 outline-none focus-visible:ring-0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Select Vendors</Label>
+                                <div className="border rounded-lg p-4 space-y-2">
+                                    {isLoadingVendors ? (
+                                        <div className="py-4 text-center text-muted-foreground">
+                                            Loading vendors...
+                                        </div>
+                                    ) : vendorError ? (
+                                        <div className="py-4 text-center text-destructive">
+                                            {vendorError}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={fetchVendors}
+                                                className="ml-2"
+                                            >
+                                                Retry
+                                            </Button>
+                                        </div>
+                                    ) : vendors.length === 0 ? (
+                                        <div className="py-4 text-center text-muted-foreground">
+                                            No approved vendors available
+                                        </div>
+                                    ) : (
+                                        vendors.map((vendor) => (
+                                            <div
+                                                key={vendor.id}
+                                                className="flex items-center space-x-2"
+                                            >
+                                                <Checkbox
+                                                    id={`vendor-${vendor.id}`}
+                                                    checked={selectedVendors.includes(
+                                                        vendor.id
+                                                    )}
+                                                    onCheckedChange={() =>
+                                                        handleVendorToggle(
+                                                            vendor.id
+                                                        )
+                                                    }
+                                                />
+                                                <Label
+                                                    htmlFor={`vendor-${vendor.id}`}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    {vendor.name}
+                                                </Label>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsEditOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving ? "Saving..." : "Save"}
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            )}
         </DialogContent>
     );
 }

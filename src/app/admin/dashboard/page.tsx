@@ -217,6 +217,7 @@ export default function DashboardPage() {
                         onDelete={() =>
                             confirmDeleteProject(selectedProject.id)
                         }
+                        onProjectUpdated={fetchProjects}
                     />
                 )}
             </Dialog>
