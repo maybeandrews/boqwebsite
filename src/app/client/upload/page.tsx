@@ -54,6 +54,10 @@ export default function PerformaPage() {
     const [uploadedPerformas, setUploadedPerformas] = useState<Performa[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [editableBOQItems, setEditableBOQItems] = useState<{
+        [boqId: number]: any[];
+    }>({});
+    const [isSending, setIsSending] = useState(false);
     const router = useRouter();
 
     // Fetch projects assigned to the current vendor
@@ -150,6 +154,27 @@ export default function PerformaPage() {
         refreshPerformas();
     }, [selectedProject, refreshPerformas]);
 
+    // Fetch BOQ items for the selected project when selectedProject changes
+    useEffect(() => {
+        if (!selectedProject) return;
+        const fetchBOQItems = async () => {
+            const itemsByBOQ: { [boqId: number]: any[] } = {};
+            await Promise.all(
+                uploadedPerformas.map(async (performa) => {
+                    const res = await fetch(`/api/boqs/${performa.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        itemsByBOQ[performa.id] = data.items || [];
+                    } else {
+                        itemsByBOQ[performa.id] = [];
+                    }
+                })
+            );
+            setEditableBOQItems(itemsByBOQ);
+        };
+        fetchBOQItems();
+    }, [selectedProject, uploadedPerformas]);
+
     // Handle file change
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -233,6 +258,36 @@ export default function PerformaPage() {
             setIsUploading(false);
         }
     }
+
+    // Handle amount change
+    const handleAmountChange = (boqId: number, idx: number, value: string) => {
+        setEditableBOQItems((prev) => {
+            const items = [...(prev[boqId] || [])];
+            items[idx] = { ...items[idx], amount: Number(value) };
+            return { ...prev, [boqId]: items };
+        });
+    };
+
+    // Send updated BOQ items to quotes API
+    const handleSendForQuote = async (boqId: number) => {
+        setIsSending(true);
+        try {
+            const res = await fetch(`/api/quotes`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ boqId, items: editableBOQItems[boqId] }),
+            });
+            if (res.ok) {
+                toast.success("BOQ sent for quote!");
+            } else {
+                toast.error("Failed to send for quote");
+            }
+        } catch (e) {
+            toast.error("Error sending for quote");
+        } finally {
+            setIsSending(false);
+        }
+    };
 
     // Format currency
     const formatCurrency = (amount: number) => {
@@ -457,6 +512,100 @@ export default function PerformaPage() {
                             </TableBody>
                         </Table>
                     )}
+
+                    {/* Editable BOQ Table Section */}
+                    {uploadedPerformas.map((performa) => (
+                        <div
+                            key={performa.id}
+                            className="bg-gray-50 p-3 rounded-md mt-4"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">
+                                        {performa.fileName}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        {performa.category || "General"}
+                                    </div>
+                                </div>
+                                <a
+                                    href={performa.downloadUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                                >
+                                    <Download className="h-4 w-4 mr-1" />
+                                    Download
+                                </a>
+                            </div>
+                            {/* Editable BOQ Table */}
+                            {editableBOQItems[performa.id] &&
+                                editableBOQItems[performa.id].length > 0 && (
+                                    <div className="mt-4">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>
+                                                        Sl. No
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Work Detail
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Amount
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {editableBOQItems[
+                                                    performa.id
+                                                ].map((item, idx) => (
+                                                    <TableRow
+                                                        key={item.id || idx}
+                                                    >
+                                                        <TableCell>
+                                                            {item.slNo}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {item.workDetail}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <input
+                                                                type="number"
+                                                                value={
+                                                                    item.amount
+                                                                }
+                                                                min={0}
+                                                                className="border rounded px-2 py-1 w-24"
+                                                                onChange={(e) =>
+                                                                    handleAmountChange(
+                                                                        performa.id,
+                                                                        idx,
+                                                                        e.target
+                                                                            .value
+                                                                    )
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <Button
+                                            className="mt-2"
+                                            onClick={() =>
+                                                handleSendForQuote(performa.id)
+                                            }
+                                            disabled={isSending}
+                                        >
+                                            {isSending
+                                                ? "Sending..."
+                                                : "Send for Quote"}
+                                        </Button>
+                                    </div>
+                                )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

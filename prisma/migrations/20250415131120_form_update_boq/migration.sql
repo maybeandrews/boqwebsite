@@ -1,0 +1,13 @@
+-- CreateTable
+CREATE TABLE "BOQItem" (
+    "id" SERIAL NOT NULL,
+    "boqId" INTEGER NOT NULL,
+    "slNo" INTEGER NOT NULL,
+    "workDetail" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "BOQItem_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "BOQItem" ADD CONSTRAINT "BOQItem_boqId_fkey" FOREIGN KEY ("boqId") REFERENCES "BOQ"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

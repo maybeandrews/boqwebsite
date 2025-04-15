@@ -87,7 +87,18 @@ export async function POST(request: NextRequest) {
         const category = formData.get("category");
         const notes = formData.get("notes");
         const file = formData.get("file") as File;
-
+        const boqItemsRaw = formData.get("boqItems");
+        let boqItems: any[] = [];
+        if (boqItemsRaw) {
+            try {
+                boqItems = JSON.parse(boqItemsRaw.toString());
+            } catch (e) {
+                return NextResponse.json(
+                    { error: "Invalid BOQ items format" },
+                    { status: 400 }
+                );
+            }
+        }
         if (!projectId || !category || !file) {
             return NextResponse.json(
                 { error: "ProjectId, category, and file are required" },
@@ -123,7 +134,16 @@ export async function POST(request: NextRequest) {
                 fileName: file.name,
                 filePath: s3Key,
                 notes: notes?.toString() || "",
+                items: {
+                    create: boqItems.map((item) => ({
+                        slNo: Number(item.slNo),
+                        workDetail: item.workDetail,
+                        amount: Number(item.amount),
+                    })),
+                },
             },
+            // The 'items' relation will be created, but not included in the immediate response
+            // Run `npx prisma generate` if the 'items' relation exists in your schema and you want to include it.
         });
 
         // Generate a presigned URL for the uploaded file
