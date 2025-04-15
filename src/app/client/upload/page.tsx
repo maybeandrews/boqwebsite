@@ -12,7 +12,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useRouter } from "next/navigation";
+// Removed unused import: useRouter from "next/navigation";
 import {
     Select,
     SelectContent,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card for form structure
 
 // Define TypeScript interfaces
 interface Project {
@@ -29,7 +30,7 @@ interface Project {
     name: string;
     description?: string;
     deadline?: string;
-    tags?: string[];
+    tags?: string[]; // Assuming tags represent categories for the project
 }
 
 interface Performa {
@@ -39,8 +40,17 @@ interface Performa {
     notes?: string;
     totalAmount: number;
     status: "PENDING" | "ACCEPTED" | "REJECTED";
-    downloadUrl?: string;
-    category?: string; // Make sure this is defined
+    downloadUrl?: string; // URL to download the file
+    category?: string;
+    boqItems?: any[]; // Added for potential future use if fetched
+}
+
+// Type for BOQ items (example structure)
+interface BOQItem {
+    id: number;
+    slNo: number;
+    workDetail: string;
+    amount: number;
 }
 
 export default function PerformaPage() {
@@ -50,42 +60,64 @@ export default function PerformaPage() {
     const [selectedCategory, setSelectedCategory] = useState<string>("");
     const [file, setFile] = useState<File | null>(null);
     const [notes, setNotes] = useState<string>("");
-    const [totalAmount, setTotalAmount] = useState<string>("");
+    const [totalAmount, setTotalAmount] = useState<string>(""); // Keep as string for input binding
     const [uploadedPerformas, setUploadedPerformas] = useState<Performa[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoadingProjects, setIsLoadingProjects] = useState<boolean>(false); // More specific loading
+    const [isLoadingPerformas, setIsLoadingPerformas] =
+        useState<boolean>(false); // More specific loading
     const [isUploading, setIsUploading] = useState<boolean>(false);
-    const router = useRouter();
+    const [boqItemsByPerforma, setBoqItemsByPerforma] = useState<{
+        // Renamed for clarity
+        [performaId: number]: BOQItem[];
+    }>({});
+    const [boqItems, setBoqItems] = useState<BOQItem[]>([]);
+    // Removed unused state: isSending
+    // Removed unused import: router
 
     // Fetch projects assigned to the current vendor
     useEffect(() => {
         async function fetchAssignedProjects() {
-            setIsLoading(true);
+            setIsLoadingProjects(true);
             try {
-                // Get the current session to extract vendorId
                 const sessionRes = await fetch("/api/auth/session");
+                if (!sessionRes.ok) {
+                    // Handle case where session endpoint itself fails
+                    throw new Error("Failed to fetch session info.");
+                }
                 const session = await sessionRes.json();
 
                 if (!session?.user?.id) {
-                    toast.error("You must be logged in to view projects");
+                    toast.error("Authentication error. Please log in again.");
+                    setIsLoadingProjects(false); // Stop loading on auth error
                     return;
                 }
+                const vendorId = session.user.id;
 
                 // Fetch only projects assigned to this vendor
+                // Assuming /api/clientuploads?vendorId=... returns Project[]
                 const res = await fetch(
-                    `/api/clientuploads?vendorId=${session.user.id}`
+                    `/api/clientuploads?vendorId=${vendorId}`
                 );
-                if (!res.ok) throw new Error("Failed to fetch projects");
+                if (!res.ok)
+                    throw new Error(
+                        `Failed to fetch projects (status: ${res.status})`
+                    );
                 const data = await res.json();
-                setProjects(data);
+                setProjects(data || []); // Ensure projects is always an array
             } catch (error) {
                 console.error("Error fetching assigned projects:", error);
-                toast.error("Failed to load assigned projects");
+                toast.error(
+                    `Failed to load assigned projects: ${
+                        error instanceof Error ? error.message : String(error)
+                    }`
+                );
+                setProjects([]); // Clear projects on error
             } finally {
-                setIsLoading(false);
+                setIsLoadingProjects(false);
             }
         }
         fetchAssignedProjects();
-    }, []);
+    }, []); // Run only once on mount
 
     // Fetch project categories when project changes
     useEffect(() => {
@@ -96,215 +128,392 @@ export default function PerformaPage() {
         }
 
         async function fetchProjectDetails() {
+            // Set loading state? Maybe not necessary if quick.
             try {
                 const res = await fetch(`/api/projects/${selectedProject}`);
                 if (!res.ok) throw new Error("Failed to fetch project details");
-                const data = await res.json();
+                const data: Project = await res.json(); // Assuming returns Project type
 
                 // Extract unique categories/tags from the project
                 if (data.tags && Array.isArray(data.tags)) {
                     setCategories(data.tags);
                 } else {
-                    setCategories([]);
+                    setCategories([]); // Ensure it's an empty array if no tags
                 }
+                setSelectedCategory(""); // Reset category selection when project changes
             } catch (error) {
                 console.error("Error fetching project details:", error);
                 toast.error("Failed to load project categories");
+                setCategories([]);
             }
         }
 
         fetchProjectDetails();
-    }, [selectedProject]);
+    }, [selectedProject]); // Run when selectedProject changes
 
     // Define refreshPerformas as a useCallback
     const refreshPerformas = useCallback(async () => {
-        if (!selectedProject) return;
-        setIsLoading(true);
+        if (!selectedProject) {
+            setUploadedPerformas([]); // Clear performas if no project selected
+            return;
+        }
+        setIsLoadingPerformas(true);
+        setBoqItemsByPerforma({}); // Clear old BOQ items
+
         try {
             const sessionRes = await fetch("/api/auth/session");
+            if (!sessionRes.ok)
+                throw new Error("Failed to fetch session info.");
             const session = await sessionRes.json();
 
-            if (!session?.user?.id) return;
+            if (!session?.user?.id) {
+                toast.error("Authentication error refreshing performas.");
+                setIsLoadingPerformas(false);
+                return; // Don't proceed without vendor ID
+            }
+            const vendorId = session.user.id;
 
+            // Fetch performas for the selected project and vendor, including download URLs
             const res = await fetch(
-                `/api/clientuploads?projectId=${selectedProject}&vendorId=${session.user.id}&includeUrls=true`
+                `/api/clientuploads?projectId=${selectedProject}&vendorId=${vendorId}&includeUrls=true`
             );
 
             if (!res.ok) throw new Error("Failed to refresh performas");
-            const data = await res.json();
-            setUploadedPerformas(data);
+            const data: Performa[] = await res.json(); // Expecting an array of Performa
+            setUploadedPerformas(data || []); // Ensure it's always an array
+
+            // --- Fetch BOQ items for each performa (Optional: can be heavy) ---
+            // Consider fetching BOQ only when needed (e.g., expanding a row)
+            // For now, completing the original logic:
+            const itemsByBOQ: { [performaId: number]: BOQItem[] } = {};
+            await Promise.all(
+                (data || []).map(async (performa) => {
+                    try {
+                        // Assuming /api/boqs/[performaId] returns { items: BOQItem[] }
+                        const boqRes = await fetch(`/api/boqs/${performa.id}`);
+                        if (boqRes.ok) {
+                            const boqData = await boqRes.json();
+                            itemsByBOQ[performa.id] = boqData.items || [];
+                        } else {
+                            // Don't fail all if one BOQ fetch fails, just log it
+                            console.warn(
+                                `Failed to fetch BOQ items for performa ${performa.id} (status: ${boqRes.status})`
+                            );
+                            itemsByBOQ[performa.id] = []; // Assign empty array on failure
+                        }
+                    } catch (boqError) {
+                        console.error(
+                            `Error fetching BOQ for performa ${performa.id}:`,
+                            boqError
+                        );
+                        itemsByBOQ[performa.id] = [];
+                    }
+                })
+            );
+            setBoqItemsByPerforma(itemsByBOQ);
+            // --- End BOQ Fetching ---
         } catch (error) {
             console.error("Error refreshing performas:", error);
+            toast.error(
+                `Failed to load performas: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            setUploadedPerformas([]); // Clear performas on error
+            setBoqItemsByPerforma({});
         } finally {
-            setIsLoading(false);
+            setIsLoadingPerformas(false);
         }
-    }, [selectedProject]);
+    }, [selectedProject]); // Dependency: only selectedProject
 
     // Call refreshPerformas when selectedProject changes
     useEffect(() => {
-        if (!selectedProject) {
-            setUploadedPerformas([]);
-            return;
-        }
-
         refreshPerformas();
-    }, [selectedProject, refreshPerformas]);
+    }, [refreshPerformas]); // refreshPerformas is stable due to useCallback
 
-    // Handle file change
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+    // Fetch BOQ items when project and category are selected
+    useEffect(() => {
+        async function fetchBOQItems() {
+            if (!selectedProject || !selectedCategory) {
+                setBoqItems([]);
+                return;
+            }
+            try {
+                const res = await fetch(
+                    `/api/boqs?projectId=${selectedProject}&category=${encodeURIComponent(
+                        selectedCategory
+                    )}`
+                );
+                if (!res.ok) throw new Error("Failed to fetch BOQ items");
+                const data = await res.json();
+                // Use the first matching BOQ (if multiple, pick the latest)
+                if (Array.isArray(data) && data.length > 0 && data[0].items) {
+                    setBoqItems(
+                        data[0].items.map((item: any) => ({
+                            slNo: item.slNo,
+                            workDetail: item.workDetail,
+                            amount: item.amount || 0,
+                        }))
+                    );
+                } else {
+                    setBoqItems([]);
+                }
+            } catch (err) {
+                setBoqItems([]);
+            }
+        }
+        fetchBOQItems();
+    }, [selectedProject, selectedCategory]);
+
+    // --- Handlers for Form Inputs ---
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            setFile(event.target.files[0]);
+        } else {
+            setFile(null);
         }
     };
 
-    // Handle file upload
-    async function handleUpload() {
-        if (!file || !selectedProject) {
-            toast.error("Please select a project and choose a file");
+    const handleCategoryChange = (value: string) => {
+        setSelectedCategory(value);
+    };
+
+    const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // Allow only numbers and a single decimal point
+        const value = event.target.value;
+        if (/^\d*\.?\d*$/.test(value)) {
+            setTotalAmount(value);
+        }
+    };
+
+    const handleNotesChange = (
+        event: React.ChangeEvent<HTMLTextAreaElement>
+    ) => {
+        setNotes(event.target.value);
+    };
+
+    // --- Handlers for BOQ Table ---
+    const handleAddBOQItem = () => {
+        setBoqItems((prev) => [
+            ...prev,
+            {
+                id: Date.now(),
+                slNo: prev.length + 1,
+                workDetail: "",
+                amount: 0,
+            },
+        ]);
+    };
+    const handleRemoveBOQItem = (idx: number) => {
+        setBoqItems((prev) =>
+            prev
+                .filter((_, i) => i !== idx)
+                .map((item, i) => ({ ...item, slNo: i + 1 }))
+        );
+    };
+    // Only allow editing amount
+    const handleBOQItemChange = (
+        idx: number,
+        field: keyof BOQItem,
+        value: string | number
+    ) => {
+        if (field !== "amount") return;
+        setBoqItems((prev) => {
+            const items = [...prev];
+            items[idx] = {
+                ...items[idx],
+                amount: Number(value),
+            };
+            return items;
+        });
+    };
+
+    // --- Handle Performa Upload ---
+    const handleUpload = async () => {
+        if (!file || !selectedProject || !totalAmount) {
+            toast.error(
+                "Please select a project, choose a file, and enter the total amount."
+            );
             return;
         }
 
-        if (
-            !totalAmount ||
-            isNaN(parseFloat(totalAmount)) ||
-            parseFloat(totalAmount) <= 0
-        ) {
-            toast.error("Please enter a valid amount");
-            return;
-        }
-
-        if (categories.length > 0 && !selectedCategory) {
-            toast.error("Please select a category for this performa");
+        // Basic validation for amount
+        const amount = parseFloat(totalAmount);
+        if (isNaN(amount) || amount <= 0) {
+            toast.error("Please enter a valid total amount greater than zero.");
             return;
         }
 
         setIsUploading(true);
 
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("projectId", selectedProject);
-        formData.append("totalAmount", totalAmount);
-        if (notes) formData.append("notes", notes);
-        if (selectedCategory) formData.append("category", selectedCategory);
-
-        // Add vendorId from session (required by API)
         try {
-            // Get the current session to extract vendorId
             const sessionRes = await fetch("/api/auth/session");
+            if (!sessionRes.ok)
+                throw new Error("Failed to fetch session info.");
             const session = await sessionRes.json();
 
-            if (!session || !session.user || !session.user.id) {
-                toast.error("You must be logged in to upload performas");
+            if (!session?.user?.id) {
+                toast.error("Authentication error during upload.");
                 setIsUploading(false);
                 return;
             }
+            const vendorId = session.user.id;
 
-            formData.append("vendorId", session.user.id.toString());
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("projectId", selectedProject);
+            formData.append("vendorId", String(vendorId)); // Ensure vendorId is string if required by backend
+            formData.append("totalAmount", String(amount)); // Send parsed amount
+            if (selectedCategory) {
+                formData.append("category", selectedCategory);
+            }
+            if (notes) {
+                formData.append("notes", notes);
+            }
+            if (boqItems.length > 0) {
+                formData.append("boqItems", JSON.stringify(boqItems));
+            }
 
-            // Continue with upload
+            // Assume POST request to /api/clientuploads handles the file upload
             const res = await fetch("/api/clientuploads", {
                 method: "POST",
                 body: formData,
+                // Do NOT set Content-Type header, browser does it for FormData
             });
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Upload failed");
+                // Try to get error message from backend response
+                let errorMsg = `Upload failed (status: ${res.status})`;
+                try {
+                    const errorData = await res.json();
+                    errorMsg = errorData.message || errorMsg;
+                } catch (e) {
+                    /* Ignore parsing error */
+                }
+                throw new Error(errorMsg);
             }
 
+            // Success
             toast.success("Performa uploaded successfully!");
-
             // Reset form
             setFile(null);
+            // Reset file input visually (find a better way if needed)
+            const fileInput = document.getElementById(
+                "performa-file-input"
+            ) as HTMLInputElement | null;
+            if (fileInput) fileInput.value = "";
+
             setNotes("");
             setTotalAmount("");
             setSelectedCategory("");
-
-            // Refresh the list using our dedicated function
+            setBoqItems([]);
+            // Refresh the list of uploaded performas
             await refreshPerformas();
         } catch (error) {
             console.error("Error uploading performa:", error);
             toast.error(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to upload performa"
+                `Upload failed: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
             );
         } finally {
             setIsUploading(false);
         }
-    }
+    };
 
-    // Format currency
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat("en-IN", {
-            style: "currency",
-            currency: "INR",
-        }).format(amount);
+    // --- Helper function to format date ---
+    const formatDate = (dateString: string | null | undefined) => {
+        if (!dateString) return "N/A";
+        try {
+            return new Date(dateString).toLocaleDateString();
+        } catch (e) {
+            return "Invalid Date";
+        }
+    };
+
+    // --- Helper function to format currency ---
+    const formatCurrency = (amount: number | string | null | undefined) => {
+        if (amount == null) return "N/A";
+        const num = typeof amount === "string" ? parseFloat(amount) : amount;
+        if (isNaN(num)) return "Invalid Amount";
+        return `₹${num.toLocaleString("en-IN")}`; // Indian Rupee format
     };
 
     return (
-        <div className="space-y-6 p-6">
-            <h1 className="text-2xl font-bold">Performa Invoice Management</h1>
+        <div className="space-y-6">
+            <h1 className="text-3xl font-bold">Upload Performa Invoice</h1>
 
-            {/* Upload Form */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                    <h2 className="text-xl font-semibold mb-4">
-                        Upload New Performa
-                    </h2>
-                    <div className="space-y-4">
-                        {/* Project Dropdown */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Select Project
-                            </label>
-                            <Select
-                                value={selectedProject}
-                                onValueChange={(value) => {
-                                    setSelectedProject(value);
-                                    setSelectedCategory(""); // Reset category when project changes
-                                }}
-                                disabled={isLoading || projects.length === 0}
+            {/* Project Selection */}
+            <div>
+                <label
+                    htmlFor="project-select"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                    Select Project
+                </label>
+                <Select
+                    onValueChange={setSelectedProject}
+                    value={selectedProject}
+                    disabled={isLoadingProjects || projects.length === 0}
+                >
+                    <SelectTrigger
+                        id="project-select"
+                        className="w-full md:w-1/2"
+                    >
+                        <SelectValue
+                            placeholder={
+                                isLoadingProjects
+                                    ? "Loading projects..."
+                                    : projects.length === 0
+                                    ? "No projects assigned"
+                                    : "Select a project"
+                            }
+                        />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {projects.map((project) => (
+                            <SelectItem
+                                key={project.id}
+                                value={project.id.toString()}
                             >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select a project" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {projects.map((project) => (
-                                        <SelectItem
-                                            key={project.id}
-                                            value={project.id.toString()}
-                                        >
-                                            {project.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {projects.length === 0 && !isLoading && (
-                                <p className="text-xs text-amber-600 mt-1">
-                                    No projects assigned to your account
-                                </p>
-                            )}
-                        </div>
+                                {project.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
 
-                        {/* Category Dropdown - Only show if project has categories */}
+            {/* Upload Form Card - Only show if a project is selected */}
+            {selectedProject && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Submit New Performa</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Category Selection */}
                         {categories.length > 0 && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Select Category
+                                <label
+                                    htmlFor="category-select"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Category (Optional)
                                 </label>
                                 <Select
+                                    onValueChange={handleCategoryChange}
                                     value={selectedCategory}
-                                    onValueChange={setSelectedCategory}
-                                    disabled={!selectedProject || isUploading}
+                                    disabled={isUploading}
                                 >
-                                    <SelectTrigger className="w-full">
+                                    <SelectTrigger
+                                        id="category-select"
+                                        className="w-full"
+                                    >
                                         <SelectValue placeholder="Select a category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {categories.map((category) => (
+                                        {categories.map((category, index) => (
                                             <SelectItem
-                                                key={category}
+                                                key={index}
                                                 value={category}
                                             >
                                                 {category}
@@ -315,164 +524,241 @@ export default function PerformaPage() {
                             </div>
                         )}
 
-                        {/* File Upload */}
+                        {/* File Input */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Upload Performa Document
+                            <label
+                                htmlFor="performa-file-input"
+                                className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Performa File (PDF, etc.)
                             </label>
                             <Input
+                                id="performa-file-input"
                                 type="file"
                                 onChange={handleFileChange}
-                                accept=".pdf,.doc,.docx,.xls,.xlsx"
-                                disabled={isUploading || !selectedProject}
+                                disabled={isUploading}
+                                className="w-full"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" // Example accept types
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                                Supported formats: PDF, Word, Excel
-                            </p>
+                            {file && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Selected: {file.name}
+                                </p>
+                            )}
                         </div>
 
-                        {/* Amount */}
+                        {/* Total Amount */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Total Amount
+                            <label
+                                htmlFor="total-amount"
+                                className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Total Amount (₹)
                             </label>
                             <Input
-                                type="number"
-                                placeholder="Enter total amount"
+                                id="total-amount"
+                                type="text" // Use text to better control input with regex
+                                placeholder="e.g., 15000.50"
                                 value={totalAmount}
-                                onChange={(e) => setTotalAmount(e.target.value)}
-                                disabled={isUploading || !selectedProject}
-                                step="0.01"
-                                min="0"
+                                onChange={handleAmountChange}
+                                disabled={isUploading}
+                                className="w-full"
+                                inputMode="decimal" // Hint for mobile keyboards
                             />
                         </div>
 
                         {/* Notes */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label
+                                htmlFor="notes"
+                                className="block text-sm font-medium text-gray-700 mb-1"
+                            >
                                 Notes (Optional)
                             </label>
                             <Textarea
-                                placeholder="Add notes or remarks"
+                                id="notes"
+                                placeholder="Add any relevant notes..."
                                 value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                disabled={isUploading || !selectedProject}
+                                onChange={handleNotesChange}
+                                disabled={isUploading}
+                                className="w-full"
                             />
                         </div>
 
+                        {/* BOQ Items Table */}
+                        <div>
+                            <h4 className="font-semibold mb-1">BOQ Table</h4>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Sl. No</TableHead>
+                                        <TableHead>Work Detail</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {boqItems.map((item, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    value={item.slNo}
+                                                    readOnly
+                                                    className="w-16 bg-gray-100 cursor-not-allowed"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input
+                                                    value={item.workDetail}
+                                                    readOnly
+                                                    className="bg-gray-100 cursor-not-allowed"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    value={item.amount}
+                                                    onChange={(e) =>
+                                                        handleBOQItemChange(
+                                                            idx,
+                                                            "amount",
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    className="w-24"
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Submit Button */}
                         <Button
                             onClick={handleUpload}
                             disabled={
                                 isUploading ||
-                                !selectedProject ||
                                 !file ||
-                                !totalAmount ||
-                                (categories.length > 0 && !selectedCategory)
+                                !selectedProject ||
+                                !totalAmount
                             }
+                            className="w-full md:w-auto"
                         >
-                            {isUploading && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {isUploading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                "Upload Performa"
                             )}
-                            {isUploading ? "Uploading..." : "Upload Performa"}
                         </Button>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
+            )}
 
-                {/* Uploaded Performas */}
-                <div>
-                    <h2 className="text-xl font-semibold mb-4">
-                        Uploaded Performas
+            {/* Uploaded Performas Table */}
+            {selectedProject && (
+                <div className="mt-8">
+                    <h2 className="text-2xl font-semibold mb-4">
+                        Uploaded Performas for Selected Project
                     </h2>
-
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-40">
-                            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                    {isLoadingPerformas ? (
+                        <div className="flex items-center justify-center h-32">
+                            <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                            <span className="ml-2">Loading performas...</span>
                         </div>
-                    ) : !selectedProject ? (
-                        <div className="text-center py-10 border rounded-lg bg-gray-50">
-                            <p className="text-gray-500">
-                                Select a project to view uploaded performas.
-                            </p>
+                    ) : uploadedPerformas.length > 0 ? (
+                        <div className="overflow-x-auto border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>File Name</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Uploaded Date</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {uploadedPerformas.map((performa) => (
+                                        <TableRow key={performa.id}>
+                                            <TableCell className="font-medium">
+                                                {performa.fileName}
+                                            </TableCell>
+                                            <TableCell>
+                                                {performa.category || "N/A"}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(
+                                                    performa.uploadedAt
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatCurrency(
+                                                    performa.totalAmount
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span
+                                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                        performa.status ===
+                                                        "ACCEPTED"
+                                                            ? "bg-green-100 text-green-800"
+                                                            : performa.status ===
+                                                              "REJECTED"
+                                                            ? "bg-red-100 text-red-800"
+                                                            : "bg-yellow-100 text-yellow-800"
+                                                    }`}
+                                                >
+                                                    {performa.status}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                {performa.downloadUrl ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            window.open(
+                                                                performa.downloadUrl,
+                                                                "_blank"
+                                                            )
+                                                        }
+                                                    >
+                                                        <Download className="mr-1 h-4 w-4" />
+                                                        Download
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">
+                                                        No link
+                                                    </span>
+                                                )}
+                                                {/* Placeholder for viewing BOQ items if needed */}
+                                                {/* {boqItemsByPerforma[performa.id]?.length > 0 && (
+                                                     <Button variant="ghost" size="sm" className="ml-2" onClick={() => alert('Show BOQ Items for ' + performa.fileName)}>
+                                                         View BOQ
+                                                     </Button>
+                                                 )} */}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
-                    ) : uploadedPerformas.length === 0 ? (
-                        <div className="text-center py-10 border rounded-lg bg-gray-50">
+                    ) : (
+                        <div className="mt-6 text-center p-6 bg-gray-50 rounded-lg">
                             <p className="text-gray-500">
                                 No performas uploaded for this project yet.
                             </p>
                         </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>File Name</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    {categories.length > 0 && (
-                                        <TableHead>Category</TableHead>
-                                    )}
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">
-                                        Actions
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {uploadedPerformas.map((performa) => (
-                                    <TableRow key={performa.id}>
-                                        <TableCell className="font-medium">
-                                            {performa.fileName}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatCurrency(
-                                                performa.totalAmount
-                                            )}
-                                        </TableCell>
-                                        {categories.length > 0 && (
-                                            <TableCell>
-                                                {performa.category || "—"}{" "}
-                                                {/* Use an em dash instead of "N/A" for better UX */}
-                                            </TableCell>
-                                        )}
-                                        <TableCell>
-                                            <span
-                                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                                    performa.status
-                                                )}`}
-                                            >
-                                                {performa.status}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <a
-                                                href={performa.downloadUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                                            >
-                                                <Download className="h-4 w-4 mr-1" />
-                                                Download
-                                            </a>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
                     )}
                 </div>
-            </div>
+            )}
         </div>
     );
-}
-
-// Helper function to get status color - simplified to just three states
-function getStatusColor(status: string): string {
-    switch (status) {
-        case "PENDING":
-            return "bg-yellow-100 text-yellow-800";
-        case "ACCEPTED":
-            return "bg-green-100 text-green-800";
-        case "REJECTED":
-            return "bg-red-100 text-red-800";
-        default:
-            return "bg-gray-100 text-gray-800";
-    }
 }

@@ -17,6 +17,7 @@ model Project {
   quotes      Quote[]
   vendors     VendorProject[]
   performas   Performa[]      // Added relation to Performa
+  groupName   String?         // Group name for project grouping
 }
 
 model Vendor {
@@ -36,8 +37,8 @@ model VendorProject {
   id        Int     @id @default(autoincrement())
   vendorId  Int
   projectId Int
-  project   Project @relation(fields: [projectId], references: [id])
-  vendor    Vendor  @relation(fields: [vendorId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor    Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@unique([vendorId, projectId])
 }
@@ -50,8 +51,20 @@ model BOQ {
   vendorId      Int?
   category      String
   notes         String?
-  project       Project  @relation(fields: [projectId], references: [id])
-  vendor        Vendor?  @relation(fields: [vendorId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor        Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  items         BOQItem[]
+}
+
+model BOQItem {
+  id         Int    @id @default(autoincrement())
+  boqId      Int
+  slNo       Int
+  workDetail String
+  amount     Float
+  boq        BOQ    @relation(fields: [boqId], references: [id], onDelete: Cascade)
+  performaId Int?   // Optional relation to Performa
+  performa   Performa? @relation("PerformaBOQItems", fields: [performaId], references: [id], onDelete: Cascade)
 }
 
 model Quote {
@@ -63,8 +76,8 @@ model Quote {
   status    QuoteStatus @default(PENDING)
   comments  String?
   value     Decimal?    @db.Decimal(10, 2)
-  project   Project     @relation(fields: [projectId], references: [id])
-  vendor    Vendor      @relation(fields: [vendorId], references: [id])
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor    Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 // New model for Performa uploads
@@ -84,10 +97,11 @@ model Performa {
   category        String?         // Add this field if it doesn't exist
   validUntil      DateTime?       // Optional expiration date
   termsAccepted   Boolean         @default(false)
+  boqItems        BOQItem[]       @relation("PerformaBOQItems") // Relation to BOQ items
   
   // Relation fields
-  project         Project         @relation(fields: [projectId], references: [id])
-  vendor          Vendor          @relation(fields: [vendorId], references: [id])
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 

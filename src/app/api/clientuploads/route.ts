@@ -190,7 +190,8 @@ export async function POST(req: NextRequest) {
         const totalAmount = formData.get("totalAmount");
         const notes = formData.get("notes") || "";
         const validUntil = formData.get("validUntil") || null;
-        const category = formData.get("category") || null; // Make sure to capture category
+        const category = formData.get("category") || null;
+        const boqItemsRaw = formData.get("boqItems");
 
         // Validate required fields
         if (!file || !vendorId || !projectId || !totalAmount) {
@@ -200,6 +201,19 @@ export async function POST(req: NextRequest) {
                 },
                 { status: 400 }
             );
+        }
+
+        // Parse BOQ items if provided
+        let boqItems = [];
+        if (boqItemsRaw) {
+            try {
+                boqItems = JSON.parse(boqItemsRaw.toString());
+            } catch (e) {
+                return NextResponse.json(
+                    { error: "Invalid BOQ items format" },
+                    { status: 400 }
+                );
+            }
         }
 
         // Convert values to appropriate types
@@ -249,7 +263,7 @@ export async function POST(req: NextRequest) {
         const command = new PutObjectCommand(uploadParams);
         await s3Client.send(command);
 
-        // Save to database
+        // Save performa to database
         const performa = await prisma.performa.create({
             data: {
                 vendorId: vendorIdNum,
@@ -263,9 +277,42 @@ export async function POST(req: NextRequest) {
                 status: "PENDING",
                 notes: notes.toString(),
                 validUntil: validUntil ? new Date(validUntil.toString()) : null,
-                category: category ? category.toString() : null, // Save the category
+                category: category ? category.toString() : null,
             },
         });
+
+        // Find the admin BOQ for this project and category
+        let boqId: number | null = null;
+        if (category) {
+            const adminBOQ = await prisma.bOQ.findFirst({
+                where: {
+                    projectId: projectIdNum,
+                    category: category.toString(),
+                },
+                orderBy: { id: "desc" }, // get the latest if multiple
+            });
+            boqId = adminBOQ ? adminBOQ.id : null;
+        }
+
+        // Save BOQ items to database, linked to the performa
+        // Define a type for BOQ items
+        interface BOQItem {
+            slNo: string;
+            workDetail: string;
+            amount: string;
+        }
+
+        if (boqItems.length > 0) {
+            await prisma.bOQItem.createMany({
+                data: boqItems.map((item: BOQItem) => ({
+                    performaId: performa.id,
+                    boqId: boqId,
+                    slNo: Number(item.slNo),
+                    workDetail: item.workDetail,
+                    amount: Number(item.amount),
+                })),
+            });
+        }
 
         // Generate a presigned URL for the uploaded file
         const getCommand = new GetObjectCommand({

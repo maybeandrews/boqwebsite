@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
         }
         const boq = await prisma.bOQ.findUnique({
             where: { id: parsedId },
-            include: { project: true },
+            include: {
+                project: true,
+                items: true, // Include BOQ items in the response
+            },
         });
         if (!boq) {
             return NextResponse.json(

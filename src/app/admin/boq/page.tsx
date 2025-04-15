@@ -1,3 +1,4 @@
+//admin/boq page.tsx
 "use client";
 
 import { useState, useEffect, ChangeEvent } from "react";
@@ -41,6 +42,13 @@ type BOQ = {
     project?: Project;
 };
 
+// Add type for BOQItem
+interface BOQItemInput {
+    slNo: number;
+    workDetail: string;
+    amount: number;
+}
+
 export default function BOQPage() {
     // State for API data
     const [projects, setProjects] = useState<Project[]>([]);
@@ -55,6 +63,10 @@ export default function BOQPage() {
     // State for form handling
     const [files, setFiles] = useState<{ [key: string]: File | null }>({});
     const [notes, setNotes] = useState<{ [key: string]: string }>({});
+    // Add state for BOQ items per category
+    const [boqItems, setBoqItems] = useState<{
+        [category: string]: BOQItemInput[];
+    }>({});
 
     // Fetch projects on component mount
     useEffect(() => {
@@ -157,6 +169,52 @@ export default function BOQPage() {
         setNotes({ ...notes, [category]: event.target.value });
     };
 
+    // Handler to add a new row
+    const handleAddBOQItem = (category: string) => {
+        setBoqItems((prev) => ({
+            ...prev,
+            [category]: [
+                ...(prev[category] || []),
+                {
+                    slNo: (prev[category]?.length || 0) + 1,
+                    workDetail: "",
+                    amount: 0,
+                },
+            ],
+        }));
+    };
+
+    // Handler to update a row
+    const handleBOQItemChange = (
+        category: string,
+        idx: number,
+        field: keyof BOQItemInput,
+        value: string | number
+    ) => {
+        setBoqItems((prev) => {
+            const items = [...(prev[category] || [])];
+            items[idx] = {
+                ...items[idx],
+                [field]:
+                    field === "amount"
+                        ? 0
+                        : field === "slNo"
+                        ? Number(value)
+                        : value,
+            };
+            return { ...prev, [category]: items };
+        });
+    };
+
+    // Handler to remove a row
+    const handleRemoveBOQItem = (category: string, idx: number) => {
+        setBoqItems((prev) => {
+            const items = [...(prev[category] || [])];
+            items.splice(idx, 1);
+            return { ...prev, [category]: items };
+        });
+    };
+
     const handleUpload = async () => {
         if (!selectedProject) {
             toast.error("Please select a project");
@@ -189,6 +247,11 @@ export default function BOQPage() {
                 formData.append("category", category);
                 formData.append("notes", notes[category] || "");
                 formData.append("file", files[category] as File);
+                // Add BOQ items as JSON string
+                formData.append(
+                    "boqItems",
+                    JSON.stringify(boqItems[category] || [])
+                );
 
                 const response = await fetch("/api/boqs", {
                     method: "POST",
@@ -205,6 +268,7 @@ export default function BOQPage() {
             // Reset form and refresh BOQs
             setFiles({});
             setNotes({});
+            setBoqItems({});
             fetchBOQs(selectedProject);
         } catch (err) {
             console.error("Error uploading BOQs:", err);
@@ -315,6 +379,144 @@ export default function BOQPage() {
                                                         }
                                                         className="mb-2"
                                                     />
+                                                    {/* BOQ Items Table */}
+                                                    <div className="mb-2">
+                                                        <h4 className="font-semibold mb-1">
+                                                            BOQ Table
+                                                        </h4>
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>
+                                                                        Sl. No
+                                                                    </TableHead>
+                                                                    <TableHead>
+                                                                        Work
+                                                                        Detail
+                                                                    </TableHead>
+                                                                    <TableHead>
+                                                                        Amount
+                                                                    </TableHead>
+                                                                    <TableHead></TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {(
+                                                                    boqItems[
+                                                                        category
+                                                                    ] || []
+                                                                ).map(
+                                                                    (
+                                                                        item,
+                                                                        idx
+                                                                    ) => (
+                                                                        <TableRow
+                                                                            key={
+                                                                                idx
+                                                                            }
+                                                                        >
+                                                                            <TableCell>
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min={
+                                                                                        1
+                                                                                    }
+                                                                                    value={
+                                                                                        item.slNo
+                                                                                    }
+                                                                                    onChange={(
+                                                                                        e
+                                                                                    ) =>
+                                                                                        handleBOQItemChange(
+                                                                                            category,
+                                                                                            idx,
+                                                                                            "slNo",
+                                                                                            e
+                                                                                                .target
+                                                                                                .value
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-16"
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Input
+                                                                                    value={
+                                                                                        item.workDetail
+                                                                                    }
+                                                                                    onChange={(
+                                                                                        e
+                                                                                    ) =>
+                                                                                        handleBOQItemChange(
+                                                                                            category,
+                                                                                            idx,
+                                                                                            "workDetail",
+                                                                                            e
+                                                                                                .target
+                                                                                                .value
+                                                                                        )
+                                                                                    }
+                                                                                    placeholder="Work Detail"
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min={
+                                                                                        0
+                                                                                    }
+                                                                                    value={
+                                                                                        item.amount
+                                                                                    }
+                                                                                    onChange={(
+                                                                                        e
+                                                                                    ) =>
+                                                                                        handleBOQItemChange(
+                                                                                            category,
+                                                                                            idx,
+                                                                                            "amount",
+                                                                                            e
+                                                                                                .target
+                                                                                                .value
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-24"
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={() =>
+                                                                                        handleRemoveBOQItem(
+                                                                                            category,
+                                                                                            idx
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    Remove
+                                                                                </Button>
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    )
+                                                                )}
+                                                            </TableBody>
+                                                        </Table>
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="mt-2"
+                                                            onClick={() =>
+                                                                handleAddBOQItem(
+                                                                    category
+                                                                )
+                                                            }
+                                                        >
+                                                            + Add Row
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </CardContent>
                                         </Card>
