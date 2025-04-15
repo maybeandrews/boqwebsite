@@ -50,12 +50,15 @@ export async function POST(request: NextRequest) {
             ? body.tags.split(",").map((tag: string) => tag.trim())
             : [];
 
+        const groupName = body.groupName || null;
+
         // Log parsed data before creating the project
         console.log("Creating project with data:", {
             name: body.name,
             description: body.description || "",
             deadline: new Date(body.deadline),
             tags,
+            groupName,
             boqs,
             quotes,
             vendors,
@@ -68,6 +71,7 @@ export async function POST(request: NextRequest) {
                 description: body.description || "",
                 deadline: new Date(body.deadline),
                 tags: { set: tags }, // Ensure tags are set using Prisma's syntax
+                groupName,
                 boqs: { connect: boqs.map((boqId: number) => ({ id: boqId })) },
                 quotes: {
                     connect: quotes.map((quoteId: number) => ({ id: quoteId })),

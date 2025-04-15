@@ -31,6 +31,7 @@ type Project = {
     quotes: number;
     deadline: string;
     tags: string[];
+    groupName?: string | undefined; // Removed null to match ProjectDetailsDialog type
 };
 
 export default function DashboardPage() {
@@ -44,6 +45,7 @@ export default function DashboardPage() {
     const [projectToDelete, setProjectToDelete] = useState<
         string | number | null
     >(null);
+    const [selectedGroup, setSelectedGroup] = useState<string>("");
 
     // Define fetchProjects outside of useEffect so it can be called from other functions
     const fetchProjects = async () => {
@@ -68,7 +70,7 @@ export default function DashboardPage() {
             }
 
             const transformedProjects: Project[] = (data as ApiProject[]).map(
-                (project: ApiProject) => ({
+                (project: any) => ({
                     id: project.id,
                     name: project.name,
                     description: project.description || "",
@@ -76,6 +78,7 @@ export default function DashboardPage() {
                     quotes: project.quotes ? project.quotes.length : 0,
                     deadline: project.deadline,
                     tags: project.tags || [],
+                    groupName: project.groupName || undefined, // Assign undefined instead of null
                 })
             );
 
@@ -129,123 +132,174 @@ export default function DashboardPage() {
         return new Date(dateString).toLocaleDateString();
     };
 
+    // Get unique group names from projects
+    const groupNames = Array.from(
+        new Set(projects.map((p) => p.groupName).filter(Boolean))
+    );
+    // Filter projects by selected group
+    const filteredProjects = selectedGroup
+        ? projects.filter((p) => p.groupName === selectedGroup)
+        : projects;
+
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">Projects Dashboard</h1>
-                <CreateProjectDialog onProjectCreated={handleProjectCreated} />
-            </div>
-
-            {isLoading && <p>Loading projects...</p>}
-            {error && <p className="text-red-500">{error}</p>}
-
-            {!isLoading && !error && (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {projects.length > 0 ? (
-                        projects.map((project) => (
-                            <Card
-                                key={project.id}
-                                className="hover:shadow-lg transition-shadow cursor-pointer"
-                                onClick={() => setSelectedProject(project)}
-                            >
-                                <CardHeader>
-                                    <div>
-                                        <CardTitle>{project.name}</CardTitle>
-                                        <CardDescription className="mt-2">
-                                            {project.description}
-                                        </CardDescription>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        <div className="flex flex-wrap gap-2">
-                                            {project.tags.map((tag) => (
-                                                <Badge
-                                                    key={tag}
-                                                    variant="outline"
-                                                >
-                                                    {tag}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm font-medium">
-                                                    Vendors
-                                                </p>
-                                                <p className="text-2xl font-bold">
-                                                    {project.vendors}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium">
-                                                    Quotes
-                                                </p>
-                                                <p className="text-2xl font-bold">
-                                                    {project.quotes}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Deadline:{" "}
-                                                {formatDate(project.deadline)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        <p className="col-span-3 text-center text-muted-foreground">
-                            No projects found. Create a new project to get
-                            started.
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {/* Project Details Dialog */}
-            <Dialog
-                open={!!selectedProject}
-                onOpenChange={(open) => !open && setSelectedProject(null)}
-            >
-                {selectedProject && (
-                    <ProjectDetailsDialog
-                        project={selectedProject}
-                        onClose={() => setSelectedProject(null)}
-                        onDelete={() =>
-                            confirmDeleteProject(selectedProject.id)
-                        }
-                        onProjectUpdated={fetchProjects}
-                    />
-                )}
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <AlertDialog
-                open={showDeleteConfirm}
-                onOpenChange={setShowDeleteConfirm}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete the project and all
-                            associated data. This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDeleteProject}
-                            className="bg-red-600 hover:bg-red-700"
+        <div className="flex">
+            {/* Sidebar for project groups */}
+            <aside className="w-56 pr-6 border-r hidden md:block">
+                <div className="mb-4">
+                    <h2 className="text-lg font-semibold mb-2">
+                        Project Groups
+                    </h2>
+                    <button
+                        className={`block w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${
+                            selectedGroup === "" ? "bg-gray-200 font-bold" : ""
+                        }`}
+                        onClick={() => setSelectedGroup("")}
+                    >
+                        All Projects
+                    </button>
+                    {groupNames.map((group) => (
+                        <button
+                            key={group}
+                            className={`block w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${
+                                selectedGroup === group
+                                    ? "bg-gray-200 font-bold"
+                                    : ""
+                            }`}
+                            onClick={() => setSelectedGroup(group || "")}
                         >
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                            {group}
+                        </button>
+                    ))}
+                </div>
+            </aside>
+            <main className="flex-1 p-6 space-y-6">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold">Projects Dashboard</h1>
+                    <CreateProjectDialog
+                        onProjectCreated={handleProjectCreated}
+                    />
+                </div>
+
+                {isLoading && <p>Loading projects...</p>}
+                {error && <p className="text-red-500">{error}</p>}
+
+                {!isLoading && !error && (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredProjects.length > 0 ? (
+                            filteredProjects.map((project) => (
+                                <Card
+                                    key={project.id}
+                                    className="hover:shadow-lg transition-shadow cursor-pointer"
+                                    onClick={() => setSelectedProject(project)}
+                                >
+                                    <CardHeader>
+                                        <div>
+                                            <CardTitle>
+                                                {project.name}
+                                            </CardTitle>
+                                            <CardDescription className="mt-2">
+                                                {project.description}
+                                            </CardDescription>
+                                            {project.groupName && (
+                                                <div className="mt-1 text-xs text-gray-500">
+                                                    Group: {project.groupName}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {project.tags.map((tag) => (
+                                                    <Badge
+                                                        key={tag}
+                                                        variant="outline"
+                                                    >
+                                                        {tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-sm font-medium">
+                                                        Vendors
+                                                    </p>
+                                                    <p className="text-2xl font-bold">
+                                                        {project.vendors}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium">
+                                                        Quotes
+                                                    </p>
+                                                    <p className="text-2xl font-bold">
+                                                        {project.quotes}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Deadline:{" "}
+                                                    {formatDate(
+                                                        project.deadline
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        ) : (
+                            <p className="col-span-3 text-center text-muted-foreground">
+                                No projects found. Create a new project to get
+                                started.
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Project Details Dialog */}
+                <Dialog
+                    open={!!selectedProject}
+                    onOpenChange={(open) => !open && setSelectedProject(null)}
+                >
+                    {selectedProject && (
+                        <ProjectDetailsDialog
+                            project={selectedProject}
+                            onClose={() => setSelectedProject(null)}
+                            onDelete={() =>
+                                confirmDeleteProject(selectedProject.id)
+                            }
+                            onProjectUpdated={fetchProjects}
+                        />
+                    )}
+                </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <AlertDialog
+                    open={showDeleteConfirm}
+                    onOpenChange={setShowDeleteConfirm}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the project and all
+                                associated data. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteProject}
+                                className="bg-red-600 hover:bg-red-700"
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </main>
         </div>
     );
 }

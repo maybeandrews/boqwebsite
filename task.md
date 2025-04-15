@@ -1,11 +1,6 @@
-# Feature: Add an edit button for each project.
+# Feature:
 
-the edit button should be placed on the top right of the project-details-dialog
-Functionality:
-When clicking the edit button, the admin should be able to update all the project details.
+consider this: I have a couple of projects all realated to orchid gwalior,
+each of them has a separate project for plumbing, hvac etc.. I want to be able to group them together. What would you suggest creating a sidebar in the dashboard for the specific project group? Or creating folders.
 
-Backend/API Considerations:
-API Endpoints:
-Edit Project: PUT /api/projects/:projectId
-
-UI: The project detail view or a modal form should enable editing. Confirmation dialogs or saving indicators can help improve the user experience.
+After I confirm the decision implement it

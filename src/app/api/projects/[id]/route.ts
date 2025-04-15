@@ -70,6 +70,7 @@ export async function PUT(request: NextRequest) {
             updateData.description = body.description;
         if (body.deadline) updateData.deadline = new Date(body.deadline);
         if (tags !== undefined) updateData.tags = { set: tags };
+        if (body.groupName !== undefined) updateData.groupName = body.groupName;
 
         // Handle relationships if needed
         if (Array.isArray(body.boqs)) {

@@ -38,6 +38,7 @@ export function CreateProjectDialog({
         name: "",
         description: "",
         deadline: "",
+        groupName: "",
     });
     const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
     const [tags, setTags] = useState<string[]>([]);
@@ -120,6 +121,7 @@ export function CreateProjectDialog({
             name: "",
             description: "",
             deadline: "",
+            groupName: "",
         });
         setSelectedVendors([]);
         setTags([]);
@@ -226,6 +228,15 @@ export function CreateProjectDialog({
                             value={formData.deadline}
                             onChange={handleInputChange}
                             required
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="groupName">Project Group</Label>
+                        <Input
+                            id="groupName"
+                            value={formData.groupName}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Orchid Gwalior"
                         />
                     </div>
                     <div className="grid gap-2">

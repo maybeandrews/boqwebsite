@@ -32,6 +32,7 @@ type Project = {
     vendors: number;
     quotes: number;
     tags: string[];
+    groupName?: string; // Only string or undefined
 };
 
 // Define vendor type that matches your API response
@@ -69,6 +70,7 @@ export function ProjectDetailsDialog({
         name: project.name,
         description: project.description,
         deadline: project.deadline ? project.deadline.slice(0, 10) : "",
+        groupName: project.groupName || "",
     });
     const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
     const [tags, setTags] = useState<string[]>(project.tags || []);
@@ -335,6 +337,15 @@ export function ProjectDetailsDialog({
                                     value={formData.name}
                                     onChange={handleInputChange}
                                     required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="groupName">Project Group</Label>
+                                <Input
+                                    id="groupName"
+                                    value={formData.groupName}
+                                    onChange={handleInputChange}
+                                    placeholder="e.g. Orchid Gwalior"
                                 />
                             </div>
                             <div className="grid gap-2">

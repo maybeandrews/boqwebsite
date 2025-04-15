@@ -17,6 +17,7 @@ model Project {
   quotes      Quote[]
   vendors     VendorProject[]
   performas   Performa[]      // Added relation to Performa
+  groupName   String?         // Group name for project grouping
 }
 
 model Vendor {
