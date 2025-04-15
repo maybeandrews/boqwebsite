@@ -281,6 +281,19 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // Find the admin BOQ for this project and category
+        let boqId: number | null = null;
+        if (category) {
+            const adminBOQ = await prisma.bOQ.findFirst({
+                where: {
+                    projectId: projectIdNum,
+                    category: category.toString(),
+                },
+                orderBy: { id: "desc" }, // get the latest if multiple
+            });
+            boqId = adminBOQ ? adminBOQ.id : null;
+        }
+
         // Save BOQ items to database, linked to the performa
         // Define a type for BOQ items
         interface BOQItem {
@@ -293,6 +306,7 @@ export async function POST(req: NextRequest) {
             await prisma.bOQItem.createMany({
                 data: boqItems.map((item: BOQItem) => ({
                     performaId: performa.id,
+                    boqId: boqId,
                     slNo: Number(item.slNo),
                     workDetail: item.workDetail,
                     amount: Number(item.amount),

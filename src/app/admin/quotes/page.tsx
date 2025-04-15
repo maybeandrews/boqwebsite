@@ -35,6 +35,12 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import {
+    Accordion,
+    AccordionItem,
+    AccordionTrigger,
+    AccordionContent,
+} from "@/components/ui/accordion";
 
 // Define types based on our API and schema
 type Project = {
@@ -75,6 +81,7 @@ type Quote = {
         contact: string | null;
     };
     presignedUrl?: string;
+    boqItems?: any[];
 };
 
 export default function QuotesPage() {
@@ -289,6 +296,33 @@ export default function QuotesPage() {
                                                             {quote.status}
                                                         </span>
                                                     </p>
+                                                    {quote.boqItems &&
+                                                        quote.boqItems.length >
+                                                            0 && (
+                                                            <div className="mt-2 p-2 bg-gray-50 rounded">
+                                                                <span className="text-xs text-gray-500">
+                                                                    BOQ Items:{" "}
+                                                                    {
+                                                                        quote
+                                                                            .boqItems
+                                                                            .length
+                                                                    }{" "}
+                                                                    | Total: ₹
+                                                                    {quote.boqItems
+                                                                        .reduce(
+                                                                            (
+                                                                                sum,
+                                                                                item
+                                                                            ) =>
+                                                                                sum +
+                                                                                (item.amount ||
+                                                                                    0),
+                                                                            0
+                                                                        )
+                                                                        .toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     <div className="mb-4"></div>
                                                     <Button
                                                         className="mb-4"
@@ -466,6 +500,64 @@ export default function QuotesPage() {
                                     className="mb-4"
                                 />
                             </div>
+
+                            {/* BOQ Items Accordion */}
+                            {selectedQuote?.boqItems &&
+                                selectedQuote.boqItems.length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="font-semibold mb-2">
+                                            Bill of Quantities
+                                        </h4>
+                                        <Table className="border rounded">
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>
+                                                        Sl. No
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Work Detail
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Amount (₹)
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {selectedQuote.boqItems.map(
+                                                    (item, idx) => (
+                                                        <TableRow
+                                                            key={item.id || idx}
+                                                        >
+                                                            <TableCell>
+                                                                {item.slNo}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {
+                                                                    item.workDetail
+                                                                }
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                ₹
+                                                                {item.amount.toLocaleString()}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                        <div className="text-right mt-2 text-sm text-gray-700 font-medium">
+                                            Total: ₹
+                                            {selectedQuote.boqItems
+                                                .reduce(
+                                                    (sum, item) =>
+                                                        sum +
+                                                        (item.amount || 0),
+                                                    0
+                                                )
+                                                .toLocaleString()}
+                                        </div>
+                                    </div>
+                                )}
                         </div>
                     )}
                     <DialogFooter className="flex justify-between">

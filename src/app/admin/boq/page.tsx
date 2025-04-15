@@ -1,3 +1,4 @@
+//admin/boq page.tsx
 "use client";
 
 import { useState, useEffect, ChangeEvent } from "react";
@@ -195,7 +196,9 @@ export default function BOQPage() {
             items[idx] = {
                 ...items[idx],
                 [field]:
-                    field === "amount" || field === "slNo"
+                    field === "amount"
+                        ? 0
+                        : field === "slNo"
                         ? Number(value)
                         : value,
             };

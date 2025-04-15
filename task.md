@@ -1,6 +1,7 @@
-# Feature:
+# update:
 
-consider this: I have a couple of projects all realated to orchid gwalior,
-each of them has a separate project for plumbing, hvac etc.. I want to be able to group them together. What would you suggest creating a sidebar in the dashboard for the specific project group? Or creating folders.
-
-After I confirm the decision implement it
+In the boq upload page right now we can choose a file and a description.
+I want to be able to also upload a table containing sl. no, work detail and amount.
+the client then on his dashboard should also be able to input values for the amount.
+how would you go about doing this?
+suggest measures and wait for my input before proceeding

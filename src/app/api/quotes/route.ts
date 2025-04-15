@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
                         contact: true,
                     },
                 },
+                boqItems: true, // Changed from "boq" to "boqItems" to match schema
             },
             orderBy: {
                 uploadedAt: "desc",
