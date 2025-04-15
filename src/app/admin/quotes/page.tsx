@@ -97,6 +97,9 @@ export default function QuotesPage() {
     const [quoteNotes, setQuoteNotes] = useState<string>("");
     const [newCategoryName, setNewCategoryName] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    // Category filter for compare section
+    const [selectedCompareCategory, setSelectedCompareCategory] =
+        useState<string>("");
 
     // Fetch all quotes and related data
     useEffect(() => {
@@ -626,10 +629,59 @@ export default function QuotesPage() {
             {selectedProject && filteredQuotes.length > 0 && (
                 <div className="mt-10">
                     <h2 className="text-2xl font-bold mb-4">Compare Quotes</h2>
+                    {/* Category filter for compare section */}
+                    <div className="mb-4 flex flex-wrap gap-2">
+                        <Button
+                            variant={
+                                selectedCompareCategory === ""
+                                    ? "default"
+                                    : "outline"
+                            }
+                            onClick={() => setSelectedCompareCategory("")}
+                            size="sm"
+                        >
+                            All Categories
+                        </Button>
+                        {Array.from(
+                            new Set(
+                                filteredQuotes.map(
+                                    (q) => q.category || "General"
+                                )
+                            )
+                        ).map((cat) => (
+                            <Button
+                                key={cat}
+                                variant={
+                                    selectedCompareCategory === cat
+                                        ? "default"
+                                        : "outline"
+                                }
+                                onClick={() => setSelectedCompareCategory(cat)}
+                                size="sm"
+                            >
+                                {cat}
+                            </Button>
+                        ))}
+                    </div>
                     {(() => {
+                        // Filter quotes by selected category for comparison
+                        const compareQuotes = selectedCompareCategory
+                            ? filteredQuotes.filter(
+                                  (q) =>
+                                      (q.category || "General") ===
+                                      selectedCompareCategory
+                              )
+                            : filteredQuotes;
+                        if (compareQuotes.length === 0) {
+                            return (
+                                <div className="p-6 text-center text-gray-500 bg-gray-50 rounded-lg">
+                                    No quotes found for this category
+                                </div>
+                            );
+                        }
                         // Gather all unique BOQ items (by slNo + workDetail)
                         const allBoqItemsMap = new Map();
-                        filteredQuotes.forEach((quote) => {
+                        compareQuotes.forEach((quote) => {
                             (quote.boqItems || []).forEach((item) => {
                                 const key = `${item.slNo}||${item.workDetail}`;
                                 if (!allBoqItemsMap.has(key)) {
@@ -648,7 +700,7 @@ export default function QuotesPage() {
                             return 0;
                         });
                         // Sort vendors by total price
-                        const sortedQuotes = [...filteredQuotes].sort(
+                        const sortedQuotes = [...compareQuotes].sort(
                             (a, b) =>
                                 (a.totalAmount || 0) - (b.totalAmount || 0)
                         );
