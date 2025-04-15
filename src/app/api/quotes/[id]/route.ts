@@ -143,3 +143,28 @@ export async function PUT(req: NextRequest) {
         );
     }
 }
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const id = params.id;
+        if (!id) {
+            return NextResponse.json(
+                { error: "Performa ID is required" },
+                { status: 400 }
+            );
+        }
+        await prisma.performa.delete({
+            where: { id: parseInt(id) },
+        });
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("Error deleting performa:", error);
+        return NextResponse.json(
+            { error: "Failed to delete performa", details: error.message },
+            { status: 500 }
+        );
+    }
+}

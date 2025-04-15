@@ -210,6 +210,22 @@ export default function QuotesPage() {
         }
     };
 
+    // Add delete handler
+    const handleDeleteQuote = async (quoteId: number) => {
+        if (!window.confirm("Are you sure you want to delete this quote?"))
+            return;
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Failed to delete quote");
+            setQuotes((prev) => prev.filter((q) => q.id !== quoteId));
+            toast.success("Quote deleted successfully");
+        } catch (err) {
+            toast.error("Failed to delete quote");
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -325,7 +341,7 @@ export default function QuotesPage() {
                                                         )}
                                                     <div className="mb-4"></div>
                                                     <Button
-                                                        className="mb-4"
+                                                        className="mb-4 mr-2"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleViewPDF(
@@ -334,6 +350,17 @@ export default function QuotesPage() {
                                                         }}
                                                     >
                                                         View File
+                                                    </Button>
+                                                    <Button
+                                                        className="mb-4 bg-red-500 hover:bg-red-700 text-white"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteQuote(
+                                                                quote.id
+                                                            );
+                                                        }}
+                                                    >
+                                                        Delete
                                                     </Button>
                                                 </div>
                                             </CardContent>
@@ -396,8 +423,18 @@ export default function QuotesPage() {
                                             onClick={() =>
                                                 handleViewQuote(quote)
                                             }
+                                            className="mr-2"
                                         >
                                             View
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleDeleteQuote(quote.id)
+                                            }
+                                        >
+                                            Delete
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -584,6 +621,130 @@ export default function QuotesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Compare Quotes Section */}
+            {selectedProject && filteredQuotes.length > 0 && (
+                <div className="mt-10">
+                    <h2 className="text-2xl font-bold mb-4">Compare Quotes</h2>
+                    {(() => {
+                        // Gather all unique BOQ items (by slNo + workDetail)
+                        const allBoqItemsMap = new Map();
+                        filteredQuotes.forEach((quote) => {
+                            (quote.boqItems || []).forEach((item) => {
+                                const key = `${item.slNo}||${item.workDetail}`;
+                                if (!allBoqItemsMap.has(key)) {
+                                    allBoqItemsMap.set(key, {
+                                        slNo: item.slNo,
+                                        workDetail: item.workDetail,
+                                    });
+                                }
+                            });
+                        });
+                        // Sort by slNo
+                        const allBoqItems = Array.from(
+                            allBoqItemsMap.values()
+                        ).sort((a, b) => {
+                            if (a.slNo && b.slNo) return a.slNo - b.slNo;
+                            return 0;
+                        });
+                        // Sort vendors by total price
+                        const sortedQuotes = [...filteredQuotes].sort(
+                            (a, b) =>
+                                (a.totalAmount || 0) - (b.totalAmount || 0)
+                        );
+                        return (
+                            <div className="overflow-x-auto">
+                                <Table className="w-full border">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Sl. No</TableHead>
+                                            <TableHead>Work Detail</TableHead>
+                                            {sortedQuotes.map((quote) => (
+                                                <TableHead
+                                                    key={
+                                                        quote.vendor.id +
+                                                        "-" +
+                                                        quote.id
+                                                    }
+                                                    className="text-center"
+                                                >
+                                                    {quote.vendor.name}
+                                                </TableHead>
+                                            ))}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {allBoqItems.map((boq, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell>
+                                                    {boq.slNo}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {boq.workDetail}
+                                                </TableCell>
+                                                {sortedQuotes.map((quote) => {
+                                                    const item = (
+                                                        quote.boqItems || []
+                                                    ).find(
+                                                        (i) =>
+                                                            i.slNo ===
+                                                                boq.slNo &&
+                                                            i.workDetail ===
+                                                                boq.workDetail
+                                                    );
+                                                    return (
+                                                        <TableCell
+                                                            key={
+                                                                quote.vendor
+                                                                    .id +
+                                                                "-" +
+                                                                quote.id
+                                                            }
+                                                            className="text-right"
+                                                        >
+                                                            {item ? (
+                                                                `₹${item.amount.toLocaleString()}`
+                                                            ) : (
+                                                                <span className="text-gray-400">
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                            </TableRow>
+                                        ))}
+                                        {/* Total row */}
+                                        <TableRow className="font-bold bg-gray-50">
+                                            <TableCell
+                                                colSpan={2}
+                                                className="text-right"
+                                            >
+                                                Total
+                                            </TableCell>
+                                            {sortedQuotes.map((quote) => (
+                                                <TableCell
+                                                    key={
+                                                        quote.vendor.id +
+                                                        "-" +
+                                                        quote.id
+                                                    }
+                                                    className="text-right"
+                                                >
+                                                    ₹
+                                                    {(
+                                                        quote.totalAmount || 0
+                                                    ).toLocaleString()}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
         </div>
     );
 }
