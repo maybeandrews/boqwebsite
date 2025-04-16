@@ -4,30 +4,33 @@ import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
     return (
-        <div className="min-h-screen flex flex-col bg-[#E5E5E5]">
-            {/* Logo in top left */}
-            <div className="absolute top-4 right-4">
+        <div className="min-h-screen flex flex-col bg-[#E5E5E5] relative">
+
+
+            {/* Bottom right - Lifescape logo */}
+            <div className="absolute bottom-7 right-4">
                 <Image
                     src="/logo.png"
-                    alt="Lifescape Solutions Logo"
-                    width={150}
+                    alt="Lifescape Logo"
+                    width={100}
                     height={60}
-                    priority
                 />
             </div>
 
-            {/* Main content - kept centered */}
+            {/* Main content */}
             <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="max-w-3xl text-center space-y-8">
-                    <div className="bg-blue-900 text-white inline-block px-10 py-5 rounded-none shadow-lg">
+                    <div className="relative bg-blue-900 text-white inline-block px-10 py-5 shadow-lg">
                         <h1 className="text-5xl font-bold tracking-wider uppercase">
                             LIFESCAPE SOLUTIONS
                         </h1>
+                        <p className="absolute right-4 bottom-1 text-sm font-bold text-white">
+                            an Arohana Venture
+                        </p>
                     </div>
 
                     <p className="text-xl text-gray-700">
-                        Streamline your construction project with our
-                        comprehensive management solution
+                        Streamline your construction project with our comprehensive management solution
                     </p>
 
                     <div className="flex gap-4 justify-center items-center">
@@ -62,7 +65,6 @@ export default function HomePage() {
     );
 }
 
-// ✅ Extracted to avoid hydration mismatch
 function FeatureCard({
     title,
     description,
