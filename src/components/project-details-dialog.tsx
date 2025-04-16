@@ -115,7 +115,7 @@ export function ProjectDetailsDialog({
             // Set selected vendors from projectVendors
             setSelectedVendors(projectVendors.map((v) => v.id));
         }
-    }, [isEditOpen]);
+    }, [isEditOpen, projectVendors]);
 
     const fetchVendors = async () => {
         setIsLoadingVendors(true);

@@ -28,9 +28,16 @@ async function generatePresignedUrl(fileKey: string) {
     }
 }
 
-export async function GET(req: NextRequest) {
+// GET request handler (Attempting Promise type for context.params)
+export async function GET(
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> } // Typing params as a Promise
+) {
     try {
-        const id = req.url.split("/").pop();
+        // Await the params object as if it were a Promise
+        const params = await context.params;
+        const id = params.id;
+
         if (!id) {
             return NextResponse.json(
                 { error: "Quote ID is required" },
@@ -38,11 +45,17 @@ export async function GET(req: NextRequest) {
             );
         }
 
+        const quoteId = parseInt(id);
+        if (isNaN(quoteId)) {
+            return NextResponse.json(
+                { error: "Invalid Quote ID format" },
+                { status: 400 }
+            );
+        }
+
         // Fetch performa with related data
         const quote = await prisma.performa.findUnique({
-            where: {
-                id: parseInt(id),
-            },
+            where: { id: quoteId },
             include: {
                 project: true,
                 vendor: {
@@ -73,7 +86,21 @@ export async function GET(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Error fetching quote:", error);
-
+        // Add specific check for potential await error
+        if (
+            error instanceof TypeError &&
+            error.message.includes("object is not awaitable")
+        ) {
+            console.error(
+                "Error likely caused by awaiting non-Promise context.params"
+            );
+            return NextResponse.json(
+                {
+                    error: "Internal server error processing request parameters",
+                },
+                { status: 500 }
+            );
+        }
         return NextResponse.json(
             { error: "Failed to fetch quote", details: error.message },
             { status: 500 }
@@ -81,10 +108,16 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// Update a specific quote's status and add comments
-export async function PUT(req: NextRequest) {
+// PUT request handler (Attempting Promise type for context.params)
+export async function PUT(
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> } // Typing params as a Promise
+) {
     try {
-        const id = req.url.split("/").pop();
+        // Await the params object as if it were a Promise
+        const params = await context.params;
+        const id = params.id;
+
         if (!id) {
             return NextResponse.json(
                 { error: "Quote ID is required" },
@@ -92,20 +125,25 @@ export async function PUT(req: NextRequest) {
             );
         }
 
+        const quoteId = parseInt(id);
+        if (isNaN(quoteId)) {
+            return NextResponse.json(
+                { error: "Invalid Quote ID format" },
+                { status: 400 }
+            );
+        }
+
         // Parse request body
-        const body = await req.json();
+        const body = await request.json();
         const { status, notes } = body;
 
         // Update performa status
         const updatedQuote = await prisma.performa.update({
-            where: {
-                id: parseInt(id),
-            },
+            where: { id: quoteId },
             data: {
                 status,
                 notes,
             },
-            // Add these include statements to fetch project and vendor info
             include: {
                 project: {
                     select: {
@@ -136,7 +174,27 @@ export async function PUT(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Error updating quote:", error);
-
+        // Add specific check for potential await error
+        if (
+            error instanceof TypeError &&
+            error.message.includes("object is not awaitable")
+        ) {
+            console.error(
+                "Error likely caused by awaiting non-Promise context.params"
+            );
+            return NextResponse.json(
+                {
+                    error: "Internal server error processing request parameters",
+                },
+                { status: 500 }
+            );
+        }
+        if (error.code === "P2025") {
+            return NextResponse.json(
+                { error: "Quote not found" },
+                { status: 404 }
+            );
+        }
         return NextResponse.json(
             { error: "Failed to update quote", details: error.message },
             { status: 500 }
@@ -144,24 +202,58 @@ export async function PUT(req: NextRequest) {
     }
 }
 
+// DELETE request handler (Attempting Promise type for context.params)
 export async function DELETE(
-    req: NextRequest,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> } // Typing params as a Promise
 ) {
     try {
+        // Await the params object as if it were a Promise
+        const params = await context.params;
         const id = params.id;
+
         if (!id) {
             return NextResponse.json(
                 { error: "Performa ID is required" },
                 { status: 400 }
             );
         }
+
+        const performaId = parseInt(id);
+        if (isNaN(performaId)) {
+            return NextResponse.json(
+                { error: "Invalid Performa ID format" },
+                { status: 400 }
+            );
+        }
+
         await prisma.performa.delete({
-            where: { id: parseInt(id) },
+            where: { id: performaId },
         });
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("Error deleting performa:", error);
+        // Add specific check for potential await error
+        if (
+            error instanceof TypeError &&
+            error.message.includes("object is not awaitable")
+        ) {
+            console.error(
+                "Error likely caused by awaiting non-Promise context.params"
+            );
+            return NextResponse.json(
+                {
+                    error: "Internal server error processing request parameters",
+                },
+                { status: 500 }
+            );
+        }
+        if (error.code === "P2025") {
+            return NextResponse.json(
+                { error: "Performa not found" },
+                { status: 404 }
+            );
+        }
         return NextResponse.json(
             { error: "Failed to delete performa", details: error.message },
             { status: 500 }
