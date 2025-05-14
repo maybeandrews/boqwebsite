@@ -5,13 +5,21 @@ import { Button } from "@/components/ui/button";
 export default function HomePage() {
     return (
         <div className="min-h-screen flex flex-col bg-[#E5E5E5] relative">
-
-
             {/* Bottom right - Lifescape logo */}
             <div className="absolute bottom-7 right-4">
                 <Image
                     src="/logo.png"
                     alt="Lifescape Logo"
+                    width={100}
+                    height={60}
+                />
+            </div>
+
+            {/* Bottom left - Arohana logo */}
+            <div className="absolute bottom-9 left-4">
+                <Image
+                    src="/arohanalogo.jpeg"
+                    alt="Arohana Logo"
                     width={100}
                     height={60}
                 />
@@ -30,7 +38,8 @@ export default function HomePage() {
                     </div>
 
                     <p className="text-xl text-gray-700">
-                        Streamline your construction project with our comprehensive management solution
+                        Streamline your construction project with our
+                        comprehensive management solution
                     </p>
 
                     <div className="flex gap-4 justify-center items-center">
