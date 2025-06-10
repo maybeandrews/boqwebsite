@@ -8,3 +8,6 @@ when comitting to github create a branch from main for your changes then push th
 then goto the website and create a pull request and I'll merge it after looking through the changes.
 
 make sure to always pull the latest version from main before working on feautres
+
+
+access the website live at http://lifescapesolutions.in/
